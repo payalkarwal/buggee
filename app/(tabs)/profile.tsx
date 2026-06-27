@@ -39,10 +39,10 @@ const THUMB = (SW - 4) / 3; // Matches paddingHorizontal: 16 and gaps of 4px bet
 const STORAGE_KEY = 'buggee_profile';
 
 const STATS = [
-    { val: '340', label: 'Rides', icon: 'car-outline', color: '#FCD451', bg: '#1a1035', tint: '#7C5CBF' },
-    { val: '4.9', label: 'Rating', icon: 'star-outline', color: '#FCD451', bg: '#1a2510', tint: '#3A9E5F' },
-    { val: '128', label: 'Reviews', icon: 'chatbubble-ellipses-outline', color: '#FCD451', bg: '#101828', tint: '#3B72C4' },
-    { val: '98%', label: 'Response', icon: 'flash-outline', color: '#FCD451', bg: '#1a1508', tint: '#B88A12' },
+    { val: '340', label: 'Rides', icon: 'car-outline', color: '#FF4F8B', bg: '#1a1035', tint: '#7C5CBF' },
+    { val: '4.9', label: 'Rating', icon: 'star-outline', color: '#FF4F8B', bg: '#1a2510', tint: '#3A9E5F' },
+    { val: '128', label: 'Reviews', icon: 'chatbubble-ellipses-outline', color: '#FF4F8B', bg: '#101828', tint: '#3B72C4' },
+    { val: '98%', label: 'Response', icon: 'flash-outline', color: '#FF4F8B', bg: '#1a1508', tint: '#B88A12' },
 ];
 
 const GRID_ITEMS = [

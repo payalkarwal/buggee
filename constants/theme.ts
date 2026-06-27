@@ -1,35 +1,35 @@
 /**
  * Buggee Design System — Theme Tokens
- * Dark  : Black background  + Golden Yellow accent (#F5C518)
- * Light : White background  + Deep Gold accent    (#D4A017)
+ * Dark  : Black background  + Hot Pink accent (#FF4F8B)
+ * Light : White background  + Blush Pink accent (#FF6B9D)
  */
 
 import { Platform } from 'react-native';
 
 // ─── Accent ──────────────────────────────────────────────────────────────────
-export const YELLOW_DARK  = '#FCD451'; // golden yellow accent shade
-export const YELLOW_LIGHT = '#FCD451'; // golden yellow accent shade
+export const PINK_DARK  = '#FF4F8B'; // Hot Rose / Neon Rose accent
+export const PINK_LIGHT = '#FF6B9D'; // Blush Pink / Bubblegum Pink accent
 
 // ─── Dark palette ────────────────────────────────────────────────────────────
 export const darkTheme = {
   // Backgrounds
-  bg: '#000000',   // root screen bg  (pure black)
-  surface: '#0D0D0D',   // slightly lifted surface
-  card: '#161616',   // card / list-item bg
-  cardAlt: '#1F1F1F',   // alternate card (booking rows)
+  bg: '#121212',   // root screen bg (Midnight Black)
+  surface: '#1E1E1E',   // slightly lifted surface (Dark Charcoal)
+  card: '#1E1E1E',   // card / list-item bg (Dark Charcoal)
+  cardAlt: '#2A2A2A',   // alternate card (booking rows)
 
   // Accent
-  accent: YELLOW_DARK,
-  accentDim: 'rgba(252, 212, 81, 0.15)',
-  accentMid: 'rgba(252, 212, 81, 0.30)',
+  accent: PINK_DARK,
+  accentDim: 'rgba(255, 79, 139, 0.15)',
+  accentMid: 'rgba(255, 79, 139, 0.30)',
 
   // Text
-  text: '#FFFFFF',
+  text: '#F5F5F5',   // Soft White
   textSub: '#A0A0A0',   // secondary / caption
   textMuted: '#606060',   // placeholder / disabled
 
   // Borders
-  border: '#262626',
+  border: '#2A2A2A',
   borderSub: 'rgba(255,255,255,0.05)',
 
   // Status
@@ -38,41 +38,41 @@ export const darkTheme = {
   success: '#22C55E',
 
   // Icon default
-  icon: YELLOW_DARK,
+  icon: PINK_DARK,
   iconMuted: '#808080',
 
   // Overlay
   overlay: 'rgba(0,0,0,0.85)',
-  modalBg: '#0E0E0E',
+  modalBg: '#1E1E1E',
 
-  // Map Location Marker & Accuracy Circle (refined for a premium golden aura in dark mode)
-  mapMarkerCore: '#FCD451',
-  mapMarkerInner: 'rgba(252, 212, 81, 0.25)',
-  mapMarkerOuter: 'rgba(252, 212, 81, 0.12)',
-  mapCircleStroke: 'rgba(252, 212, 81, 0.35)',
-  mapCircleFill: 'rgba(252, 212, 81, 0.06)',
+  // Map Location Marker & Accuracy Circle (refined for a premium pink aura in dark mode)
+  mapMarkerCore: '#FF4F8B',
+  mapMarkerInner: 'rgba(255, 79, 139, 0.25)',
+  mapMarkerOuter: 'rgba(255, 79, 139, 0.12)',
+  mapCircleStroke: 'rgba(255, 79, 139, 0.35)',
+  mapCircleFill: 'rgba(255, 79, 139, 0.06)',
 } as const;
 
 // ─── Light palette ───────────────────────────────────────────────────────────
 export const lightTheme = {
   // Backgrounds
-  bg: '#FFFFFF',   // root screen bg (pure white)
-  surface: '#F8F9FA',   // slightly lifted surface
-  card: '#FFFFFF',   // card / list-item bg
-  cardAlt: '#F1F3F5',   // alternate card
+  bg: '#FFFFFF',   // root screen bg (Pure White)
+  surface: '#FFE6F0',   // slightly lifted surface (Rose Mist / Baby Pink)
+  card: '#FFFFFF',   // card / list-item bg (Pure White)
+  cardAlt: '#FFF0F7',   // alternate card (lighter pink tint)
 
   // Accent
-  accent: YELLOW_LIGHT,
-  accentDim: 'rgba(252, 212, 81, 0.12)',
-  accentMid: 'rgba(252, 212, 81, 0.22)',
+  accent: PINK_LIGHT,
+  accentDim: 'rgba(255, 107, 157, 0.12)',
+  accentMid: 'rgba(255, 107, 157, 0.22)',
 
   // Text
-  text: '#121212',   // main readable text
+  text: '#333333',   // main readable text (Charcoal Black)
   textSub: '#5F6368',   // secondary / caption
   textMuted: '#9AA0A6',   // placeholder / disabled
 
   // Borders
-  border: '#E8EAED',
+  border: '#FFD4E5',   // soft pink border
   borderSub: 'rgba(0,0,0,0.04)',
 
   // Status
@@ -81,19 +81,19 @@ export const lightTheme = {
   success: '#16A34A',
 
   // Icon default
-  icon: YELLOW_LIGHT,
+  icon: PINK_LIGHT,
   iconMuted: '#BDC1C6',
 
   // Overlay
   overlay: 'rgba(0,0,0,0.45)',
   modalBg: '#FFFFFF',
 
-  // Map Location Marker & Accuracy Circle (darker gold-yellow for enhanced visibility on light map)
-  mapMarkerCore: '#B57C00',
-  mapMarkerInner: 'rgba(181, 124, 0, 0.25)',
-  mapMarkerOuter: 'rgba(181, 124, 0, 0.12)',
-  mapCircleStroke: 'rgba(181, 124, 0, 0.40)',
-  mapCircleFill: 'rgba(181, 124, 0, 0.08)',
+  // Map Location Marker & Accuracy Circle (darker pink for enhanced visibility on light map)
+  mapMarkerCore: '#E91E63',
+  mapMarkerInner: 'rgba(233, 30, 99, 0.25)',
+  mapMarkerOuter: 'rgba(233, 30, 99, 0.12)',
+  mapCircleStroke: 'rgba(233, 30, 99, 0.40)',
+  mapCircleFill: 'rgba(233, 30, 99, 0.08)',
 } as const;
 
 export type AppTheme = {

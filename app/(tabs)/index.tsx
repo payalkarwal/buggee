@@ -1,8 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -60,7 +61,7 @@ const tierDetails = {
   Standard: {
     name: 'Standard',
     icon: 'car-side' as const,
-    color: '#FCD451',
+    color: '#FF4F8B',
     desc: 'Comfortable, budget-friendly everyday rides.',
     detailDesc: 'Perfect for daily commuting or quick solo trips. Safe, clean, and extremely budget-friendly hatchbacks with professional drivers.',
     price: '₹ 49',
@@ -71,7 +72,7 @@ const tierDetails = {
   Delux: {
     name: 'Delux',
     icon: 'car-sports' as const,
-    color: '#FCD451',
+    color: '#FF4F8B',
     desc: 'Premium comfort and extra space.',
     detailDesc: 'Enjoy a premium travel experience in spacious, high-end sedans. Features top-rated drivers, extra legroom, and dual-zone climate control.',
     price: '₹ 79',
@@ -82,7 +83,7 @@ const tierDetails = {
   VIP: {
     name: 'VIP',
     icon: 'crown' as const,
-    color: '#FCD451',
+    color: '#FF4F8B',
     desc: 'Elite luxury experience with top chauffeurs.',
     detailDesc: 'Ride in first-class luxury. Our elite tier features high-end premium SUVs, noise-canceling cabin, complimentary refreshments, and priority route dispatch.',
     price: '₹ 129',
@@ -94,6 +95,10 @@ const tierDetails = {
 
 export default function HomeScreen() {
   const { colors, isDark } = useAppTheme();
+  const params = useLocalSearchParams();
+  const returnedPickup = params.pickup as string | undefined;
+  const returnedDrop = params.drop as string | undefined;
+  const returnedTier = params.tier as string | undefined;
 
   const [isLocationModalVisible, setLocationModalVisible] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
@@ -114,30 +119,157 @@ export default function HomeScreen() {
 
   const [selectedTier, setSelectedTier] = useState<'Standard' | 'Delux' | 'VIP' | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isFullDetailsOpen, setIsFullDetailsOpen] = useState(false);
+  const [isBookingDrawerOpen, setIsBookingDrawerOpen] = useState(false);
+  const [isConfirmationDrawerOpen, setIsConfirmationDrawerOpen] = useState(false);
+  const [pickupLocation, setPickupLocation] = useState('Current Location');
+  const [dropLocation, setDropLocation] = useState('');
   const drawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const drawerFadeAnim = useRef(new Animated.Value(0)).current;
+  const bookingDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const bookingDrawerFadeAnim = useRef(new Animated.Value(0)).current;
+  const confirmationDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const confirmationDrawerFadeAnim = useRef(new Animated.Value(0)).current;
   const tabBarAnim = useRef(new Animated.Value(1)).current;
 
   const openDrawer = (tier: 'Standard' | 'Delux' | 'VIP') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedTier(tier);
     setIsDrawerOpen(true);
-    setIsFullDetailsOpen(false);
     Animated.parallel([
-      Animated.spring(drawerSlideAnim, { toValue: 0, tension: 45, friction: 8, useNativeDriver: true }),
-      Animated.timing(drawerFadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.timing(tabBarAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.spring(drawerSlideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 9,
+        useNativeDriver: true
+      }),
+      Animated.timing(drawerFadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true
+      }),
+      Animated.timing(tabBarAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+    ]).start();
+  };
+
+  const openBookingDrawer = (tier: 'Standard' | 'Delux' | 'VIP') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectedTier(tier);
+    setIsBookingDrawerOpen(true);
+    Animated.parallel([
+      Animated.spring(bookingDrawerSlideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 9,
+        useNativeDriver: true
+      }),
+      Animated.timing(bookingDrawerFadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true
+      }),
+      Animated.timing(tabBarAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
     ]).start();
   };
 
   const closeDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(drawerSlideAnim, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: true }),
-      Animated.timing(drawerFadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-      Animated.timing(tabBarAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.timing(drawerSlideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(drawerFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+      Animated.timing(tabBarAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true
+      }),
     ]).start(() => {
       setIsDrawerOpen(false);
       setSelectedTier(null);
+    });
+  };
+
+  const closeBookingDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.parallel([
+      Animated.timing(bookingDrawerSlideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(bookingDrawerFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+      Animated.timing(tabBarAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true
+      }),
+    ]).start(() => {
+      setIsBookingDrawerOpen(false);
+      setSelectedTier(null);
+    });
+  };
+
+  const openConfirmationDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsConfirmationDrawerOpen(true);
+    Animated.parallel([
+      Animated.spring(confirmationDrawerSlideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 9,
+        useNativeDriver: true
+      }),
+      Animated.timing(confirmationDrawerFadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true
+      }),
+      Animated.timing(tabBarAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+    ]).start();
+  };
+
+  const closeConfirmationDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.parallel([
+      Animated.timing(confirmationDrawerSlideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(confirmationDrawerFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+      Animated.timing(tabBarAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true
+      }),
+    ]).start(() => {
+      setIsConfirmationDrawerOpen(false);
     });
   };
 
@@ -145,6 +277,9 @@ export default function HomeScreen() {
   const modalFadeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rippleAnim = useRef(new Animated.Value(0)).current;
+  const markerPulseAnim = useRef(new Animated.Value(1)).current;
+  const markerRippleAnim = useRef(new Animated.Value(0)).current;
+  const markerBounceAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -166,38 +301,120 @@ export default function HomeScreen() {
     return () => { pulse.stop(); ripple.stop(); };
   }, []);
 
+  // Marker animations - smooth and professional
+  useEffect(() => {
+    if (userLocation) {
+      // Initial bounce animation when marker appears
+      Animated.sequence([
+        Animated.spring(markerBounceAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Continuous subtle pulse
+      const markerPulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(markerPulseAnim, { toValue: 1.08, duration: 2000, useNativeDriver: true }),
+          Animated.timing(markerPulseAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        ])
+      );
+      markerPulse.start();
+
+      // Continuous ripple effect
+      const markerRipple = Animated.loop(
+        Animated.sequence([
+          Animated.timing(markerRippleAnim, { toValue: 1, duration: 2500, useNativeDriver: true }),
+          Animated.timing(markerRippleAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
+        ])
+      );
+      markerRipple.start();
+
+      return () => {
+        markerPulse.stop();
+        markerRipple.stop();
+      };
+    }
+  }, [userLocation]);
+
   useEffect(() => {
     if (isLocationModalVisible) {
       modalSlideAnim.setValue(500);
       modalFadeAnim.setValue(0);
       Animated.parallel([
-        Animated.timing(modalFadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
-        Animated.spring(modalSlideAnim, { toValue: 0, tension: 55, friction: 10, useNativeDriver: true }),
+        Animated.timing(modalFadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true
+        }),
+        Animated.spring(modalSlideAnim, {
+          toValue: 0,
+          tension: 60,
+          friction: 10,
+          useNativeDriver: true
+        }),
       ]).start();
     }
   }, [isLocationModalVisible]);
 
   const closeModal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(modalSlideAnim, { toValue: 500, duration: 260, useNativeDriver: true }),
-      Animated.timing(modalFadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(modalSlideAnim, {
+        toValue: 500,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(modalFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
     ]).start(() => setLocationModalVisible(false));
   };
 
   useEffect(() => {
     const loadLocation = async () => {
       try {
+        // Load saved location
         const savedLocation = await AsyncStorage.getItem('userLocation');
         if (savedLocation) setSelectedLocation(savedLocation);
-      } catch { }
-      // Agar permission pehle se hai to chup-chaap live pin start kar do
-      const { status } = await Location.getForegroundPermissionsAsync();
-      if (status === 'granted') setLiveTracking(true);
-      // Small delay so map renders first, then modal slides up
-      setTimeout(() => setLocationModalVisible(true), 400);
+
+        // Check current permission status
+        const { status } = await Location.getForegroundPermissionsAsync();
+
+        if (status === 'granted') {
+          // Permission already granted, start tracking
+          setLiveTracking(true);
+          await AsyncStorage.setItem('locationPermissionGranted', 'true');
+        } else {
+          // Permission not granted, show modal
+          setTimeout(() => setLocationModalVisible(true), 500);
+        }
+      } catch (error) {
+        console.log('Location load error:', error);
+        // On error, show modal to be safe
+        setTimeout(() => setLocationModalVisible(true), 500);
+      }
     };
     loadLocation();
   }, []);
+
+  // Handle returning from ride-options with updated locations
+  useEffect(() => {
+    if (returnedPickup || returnedDrop) {
+      if (returnedPickup) setPickupLocation(returnedPickup);
+      if (returnedDrop) setDropLocation(returnedDrop);
+
+      // Re-open the booking drawer with the updated locations
+      if (returnedTier) {
+        setSelectedTier(returnedTier as 'Standard' | 'Delux' | 'VIP');
+        setTimeout(() => openBookingDrawer(returnedTier as 'Standard' | 'Delux' | 'VIP'), 300);
+      }
+    }
+  }, [returnedPickup, returnedDrop, returnedTier]);
 
   // ── LIVE precise GPS — pin exact spot pe rehta hai aur move pe update hota hai ──
   // NOTE: Real precision sirf physical device pe milti hai (simulator fake/0 deta hai).
@@ -224,6 +441,7 @@ export default function HomeScreen() {
   }, [liveTracking]);
 
   const fetchCurrentLocation = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsLoadingLocation(true);
     try {
       const hasServices = await Location.hasServicesEnabledAsync();
@@ -257,6 +475,8 @@ export default function HomeScreen() {
         setSelectedLocation(locationString);
         await AsyncStorage.setItem('userLocation', locationString);
         await AsyncStorage.setItem('userFullAddress', fullAddr);
+        await AsyncStorage.setItem('locationPermissionGranted', 'true');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         closeModal();
       } else {
         Alert.alert('Error', 'Could not determine address. Please try again.');
@@ -270,10 +490,11 @@ export default function HomeScreen() {
 
   // Recenter hamesha precise pin pe (stale region pe nahi)
   const handleRecenter = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const target = userLocation ?? region;
     mapRef.current?.animateToRegion(
       { latitude: target.latitude, longitude: target.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-      700
+      600
     );
   };
 
@@ -292,18 +513,57 @@ export default function HomeScreen() {
           rotateEnabled
           pitchEnabled
         >
-          {/* Precise pickup location pin — Rapido / Ola / Uber style */}
+          {/* Precise pickup location pin — Professional Uber/Rapido style */}
           {userLocation && (
             <Marker
               coordinate={userLocation}
               anchor={{ x: 0.5, y: 1 }}
-              tracksViewChanges={true}
+              tracksViewChanges={false}
               zIndex={2}
             >
-              <View style={styles.pinWrap} collapsable={false}>
-                <Ionicons name="location-sharp" size={46} color="#E53935" style={styles.pinIcon} />
-                <View style={styles.pinInnerDot} />
-              </View>
+              <Animated.View style={[styles.markerContainer, { transform: [{ scale: markerBounceAnim }] }]} collapsable={false}>
+                {/* Outer ripple effect */}
+                <Animated.View
+                  style={[
+                    styles.markerRipple,
+                    {
+                      transform: [
+                        {
+                          scale: markerRippleAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 2.5],
+                          }),
+                        },
+                      ],
+                      opacity: markerRippleAnim.interpolate({
+                        inputRange: [0, 0.3, 1],
+                        outputRange: [0.4, 0.15, 0],
+                      }),
+                    },
+                  ]}
+                />
+
+                {/* Pulsing base circle */}
+                <Animated.View
+                  style={[
+                    styles.markerBase,
+                    {
+                      transform: [{ scale: markerPulseAnim }],
+                    },
+                  ]}
+                />
+
+                {/* Main pin */}
+                <View style={styles.markerPinWrapper}>
+                  <View style={styles.markerPinShadow} />
+                  <View style={styles.markerPin}>
+                    <View style={styles.markerPinInner}>
+                      <Ionicons name="location" size={18} color="#FFFFFF" />
+                    </View>
+                  </View>
+                  <View style={styles.markerPinPoint} />
+                </View>
+              </Animated.View>
             </Marker>
           )}
         </MapView>
@@ -328,7 +588,8 @@ export default function HomeScreen() {
           {/* Notification button — top right */}
           <TouchableOpacity
             onPress={() => {
-              router.push(ROUTES.NOTIFICATIONS)
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push(ROUTES.NOTIFICATIONS);
             }}
             style={[styles.headerBtn, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
           >
@@ -340,6 +601,15 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </SafeAreaContextView>
+
+      {/* Location Button - Show precise location */}
+      <TouchableOpacity
+        style={[styles.locationFab, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={() => setLocationModalVisible(true)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="location" size={22} color={colors.accent} />
+      </TouchableOpacity>
 
       {/* Recenter FAB */}
       <TouchableOpacity
@@ -383,7 +653,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bookBtn, { backgroundColor: colors.accent }]}
-              onPress={() => router.push('/rides/booking?tier=Standard')}
+              onPress={() => openBookingDrawer('Standard')}
               activeOpacity={0.85}
             >
               <Text style={[styles.bookBtnText, { color: '#000' }]}>Book</Text>
@@ -418,7 +688,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bookBtn, { backgroundColor: colors.accent }]}
-              onPress={() => router.push('/rides/booking?tier=Delux')}
+              onPress={() => openBookingDrawer('Delux')}
               activeOpacity={0.85}
             >
               <Text style={[styles.bookBtnText, { color: '#000' }]}>Book</Text>
@@ -455,7 +725,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bookBtn, { backgroundColor: colors.accent }]}
-              onPress={() => router.push('/rides/booking?tier=VIP')}
+              onPress={() => openBookingDrawer('VIP')}
               activeOpacity={0.85}
             >
               <Text style={[styles.bookBtnText, { color: '#000' }]}>Book</Text>
@@ -570,6 +840,7 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   </View>
 
+                  {/* About Section Only */}
                   <View style={[styles.drawerDetailsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={[styles.drawerSummaryTitle, { color: colors.text }]}>About</Text>
                     <Text style={[styles.drawerDetailDescText, { color: colors.textSub }]}>{details.detailDesc}</Text>
@@ -577,6 +848,199 @@ export default function HomeScreen() {
                 </View>
               );
             })()}
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+
+      {/* Booking Drawer - Pickup/Drop Selection */}
+      <Modal visible={isBookingDrawerOpen} animationType="none" transparent onRequestClose={closeBookingDrawer}>
+        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: bookingDrawerFadeAnim }]}>
+          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeBookingDrawer} />
+          <Animated.View style={[styles.bookingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: bookingDrawerSlideAnim }] }]}>
+            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+            {selectedTier && (() => {
+              const details = tierDetails[selectedTier];
+              return (
+                <View style={styles.drawerInnerContainer}>
+                  {/* Enhanced Ride Header with Gradient-like Effect */}
+                  <View style={[styles.enhancedRideHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={styles.rideHeaderTop}>
+                      <View style={styles.rideIconContainer}>
+                        <View style={[styles.rideIconOuter, { backgroundColor: colors.accentDim }]}>
+                          {selectedTier === 'Standard' && (
+                            <MaterialCommunityIcons name="car-side" size={32} color={colors.accent} />
+                          )}
+                          {selectedTier === 'Delux' && (
+                            <MaterialCommunityIcons name="car-sports" size={32} color={colors.accent} />
+                          )}
+                          {selectedTier === 'VIP' && (
+                            <MaterialCommunityIcons name="crown" size={32} color={colors.accent} />
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.rideHeaderInfo}>
+                        <View style={styles.rideNameRow}>
+                          <Text style={[styles.rideHeaderName, { color: colors.text }]}>{details.name}</Text>
+                          {selectedTier === 'Delux' && (
+                            <View style={[styles.popularTag, { backgroundColor: colors.accentDim }]}>
+                              <Ionicons name="star" size={10} color={colors.accent} />
+                              <Text style={[styles.popularTagText, { color: colors.accent }]}>Popular</Text>
+                            </View>
+                          )}
+                          {selectedTier === 'VIP' && (
+                            <View style={[styles.premiumTag, { backgroundColor: colors.accentDim }]}>
+                              <Ionicons name="diamond" size={10} color={colors.accent} />
+                              <Text style={[styles.premiumTagText, { color: colors.accent }]}>Premium</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={[styles.rideHeaderDesc, { color: colors.textSub }]}>{details.desc}</Text>
+                        <View style={styles.ridePriceBadge}>
+                          <Ionicons name="cash-outline" size={14} color={colors.accent} />
+                          <Text style={[styles.ridePriceText, { color: colors.text }]}>{details.price}/km</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Simplified Location Section with Route Line */}
+                  <View style={styles.simpleLocationsSection}>
+                    {/* Pickup Location */}
+                    <TouchableOpacity
+                      style={styles.simpleLocationRow}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        closeBookingDrawer();
+                        setTimeout(() => {
+                          const params = new URLSearchParams();
+                          params.append('tier', selectedTier);
+                          params.append('type', 'pickup');
+                          params.append('pickup', pickupLocation);
+                          if (dropLocation) params.append('drop', dropLocation);
+                          router.push('/rides/ride-options?' + params.toString());
+                        }, 300);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.simpleLocationLeft}>
+                        <View style={[styles.simpleLocationDot, { backgroundColor: colors.accent }]} />
+                        <View style={styles.simpleLocationTextWrap}>
+                          <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>Pickup location</Text>
+                          <Text style={[styles.simpleLocationValue, { color: colors.text }]}>{pickupLocation}</Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+                    </TouchableOpacity>
+
+                    {/* Visual Route Line */}
+                    <View style={styles.simpleRouteLine}>
+                      <View style={[styles.simpleRouteLinePath, { backgroundColor: colors.border }]} />
+                    </View>
+
+                    {/* Drop Location */}
+                    <TouchableOpacity
+                      style={styles.simpleLocationRow}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        closeBookingDrawer();
+                        setTimeout(() => {
+                          const params = new URLSearchParams();
+                          params.append('tier', selectedTier);
+                          params.append('type', 'drop');
+                          params.append('pickup', pickupLocation);
+                          if (dropLocation) params.append('drop', dropLocation);
+                          router.push('/rides/ride-options?' + params.toString());
+                        }, 300);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.simpleLocationLeft}>
+                        <View style={[styles.simpleLocationSquare, { borderColor: '#E53935' }]} />
+                        <View style={styles.simpleLocationTextWrap}>
+                          <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>Drop off location</Text>
+                          <Text style={[styles.simpleLocationValue, { color: dropLocation ? colors.text : colors.textSub }]}>
+                            {dropLocation || 'Where to?'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Continue Button */}
+                  <TouchableOpacity
+                    style={[styles.continueButton, { backgroundColor: colors.accent, opacity: (pickupLocation && dropLocation) ? 1 : 0.5 }]}
+                    onPress={() => {
+                      if (pickupLocation && dropLocation) {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        closeBookingDrawer();
+                        setTimeout(() => openConfirmationDrawer(), 300);
+                      }
+                    }}
+                    disabled={!pickupLocation || !dropLocation}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.continueButtonText, { color: '#000' }]}>Continue</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#000" />
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+
+      {/* Confirmation Drawer - Confirm Pickup Spot */}
+      <Modal visible={isConfirmationDrawerOpen} animationType="none" transparent onRequestClose={closeConfirmationDrawer}>
+        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: confirmationDrawerFadeAnim }]}>
+          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeConfirmationDrawer} />
+          <Animated.View style={[styles.bookingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: confirmationDrawerSlideAnim }] }]}>
+            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+            <View style={styles.drawerInnerContainer}>
+              {/* Heading */}
+              <Text style={[styles.confirmationTitle, { color: colors.text }]}>Confirm the pickup spot</Text>
+
+              {/* Locations Display */}
+              <View style={[styles.confirmationLocationsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                {/* Pickup Location */}
+                <View style={styles.confirmationLocationRow}>
+                  <View style={[styles.simpleLocationDot, { backgroundColor: colors.accent }]} />
+                  <View style={styles.confirmationLocationTextWrap}>
+                    <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>PICKUP</Text>
+                    <Text style={[styles.confirmationLocationValue, { color: colors.text }]}>{pickupLocation}</Text>
+                  </View>
+                </View>
+
+                {/* Visual Route Line */}
+                <View style={styles.confirmationRouteLine}>
+                  <View style={[styles.simpleRouteLinePath, { backgroundColor: colors.border }]} />
+                </View>
+
+                {/* Drop Location */}
+                <View style={styles.confirmationLocationRow}>
+                  <View style={[styles.simpleLocationSquare, { borderColor: '#E53935' }]} />
+                  <View style={styles.confirmationLocationTextWrap}>
+                    <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>DROP-OFF</Text>
+                    <Text style={[styles.confirmationLocationValue, { color: colors.text }]}>{dropLocation}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Confirm Pickup Button */}
+              <TouchableOpacity
+                style={[styles.confirmPickupButton, { backgroundColor: colors.accent }]}
+                onPress={() => {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  closeConfirmationDrawer();
+                  setTimeout(() => {
+                    router.push('/rides/ride-options?tier=' + selectedTier + '&pickup=' + encodeURIComponent(pickupLocation) + '&drop=' + encodeURIComponent(dropLocation) + '&autoShow=true');
+                  }, 300);
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.confirmPickupButtonText, { color: '#000' }]}>Confirm Pickup</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         </Animated.View>
       </Modal>
@@ -626,43 +1090,124 @@ const styles = StyleSheet.create({
   },
 
   // ── FAB ──
-  floatingFab: {
-  position: 'absolute',
-  right: 16,
-  top: SCREEN_HEIGHT * 0.50 - 66,
-  width: 46,
-  height: 46,
-  borderRadius: 23,
-  justifyContent: 'center',
-  alignItems: 'center',
-  borderWidth: 1.5,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.25,
-  shadowRadius: 6,
-  elevation: 6,
-  zIndex: 10,
-},
-
-  // ── Precise location pin (Rapido / Ola / Uber style) ──
-  pinWrap: {
+  locationFab: {
+    position: 'absolute',
+    right: 16,
+    top: SCREEN_HEIGHT * 0.50 - 122,
     width: 46,
     height: 46,
+    borderRadius: 23,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+    zIndex: 10,
+  },
+  floatingFab: {
+    position: 'absolute',
+    right: 16,
+    top: SCREEN_HEIGHT * 0.50 - 66,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+    zIndex: 10,
+  },
+
+  // ── Professional Precise Location Marker (Uber/Rapido/Ola style) ──
+  markerContainer: {
+    width: 70,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markerRipple: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(229, 57, 53, 0.2)',
+    top: 5,
+  },
+  markerBase: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(229, 57, 53, 0.25)',
+    top: 16,
+  },
+  markerPinWrapper: {
     alignItems: 'center',
     justifyContent: 'flex-start',
+    width: 48,
+    height: 60,
   },
-  pinIcon: {
-    textShadowColor: 'rgba(0,0,0,0.35)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 3,
-  },
-  pinInnerDot: {
+  markerPinShadow: {
     position: 'absolute',
-    top: 11,
-    width: 13,
-    height: 13,
-    borderRadius: 6.5,
-    backgroundColor: '#FFFFFF',
+    top: 2,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  markerPin: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E53935',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6,
+    zIndex: 2,
+  },
+  markerPinInner: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E53935',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  markerPinPoint: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#E53935',
+    marginTop: -3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
 
   // ── Bottom half ──
@@ -796,7 +1341,7 @@ const styles = StyleSheet.create({
     borderRadius: 34,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FCD451',
+    shadowColor: '#FF4F8B',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.45,
     shadowRadius: 18,
@@ -909,5 +1454,234 @@ const styles = StyleSheet.create({
   },
   confirmBtnText: { fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
 
+  // ── Professional Booking Drawer (Industry Level) ──
+  bookingDrawerContent: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 50,
+    paddingTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 20,
+  },
+
+  // Enhanced Ride Header
+  enhancedRideHeader: {
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    marginBottom: 24,
+  },
+  rideHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  rideIconContainer: {},
+  rideIconOuter: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rideHeaderInfo: {
+    flex: 1,
+  },
+  rideNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  rideHeaderName: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  popularTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  popularTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  premiumTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  premiumTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  rideHeaderDesc: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  ridePriceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ridePriceText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  // Simplified Locations Section
+  simpleLocationsSection: {
+    marginBottom: 24,
+  },
+  simpleLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  simpleLocationLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  simpleLocationDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  simpleLocationSquare: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+    borderWidth: 2,
+  },
+  simpleLocationTextWrap: {
+    flex: 1,
+  },
+  simpleLocationLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  simpleLocationValue: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  simpleEditButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  simpleEditText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  editLocationBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  editLocationTextBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editLocationBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Simple Route Line
+  simpleRouteLine: {
+    paddingLeft: 6,
+    paddingVertical: 10,
+  },
+  simpleRouteLinePath: {
+    width: 2,
+    height: 32,
+    borderRadius: 1,
+  },
+
+  // Continue Button
+  continueButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 8,
+    marginTop: 8,
+  },
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+
+  // Confirmation Drawer
+  confirmationTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 24,
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  confirmationLocationsCard: {
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    marginBottom: 24,
+  },
+  confirmationLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  confirmationLocationTextWrap: {
+    flex: 1,
+    gap: 6,
+  },
+  confirmationLocationValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  confirmationRouteLine: {
+    paddingLeft: 6,
+    paddingVertical: 12,
+  },
+  confirmPickupButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 8,
+  },
+  confirmPickupButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
 
 });
