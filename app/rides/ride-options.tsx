@@ -172,9 +172,7 @@ export default function RideOptionsScreen() {
 
   // Update locations when URL params change
   useEffect(() => {
-    // Set pickup location from params or default to 'Current Location'
     setPickupLocation(initialPickup || 'Current Location');
-    // Set drop location from params or empty string
     setDropLocation(initialDrop || '');
   }, [initialPickup, initialDrop]);
 
@@ -328,7 +326,9 @@ export default function RideOptionsScreen() {
                 setIsSelectingPickup(true);
                 setIsSelectingDrop(false);
               }}
-              onBlur={() => setIsSelectingPickup(false)}
+              onBlur={() => {
+                setIsSelectingPickup(false);
+              }}
             />
           </View>
         </View>
@@ -356,7 +356,9 @@ export default function RideOptionsScreen() {
                 setIsSelectingDrop(true);
                 setIsSelectingPickup(false);
               }}
-              onBlur={() => setIsSelectingDrop(false)}
+              onBlur={() => {
+                setIsSelectingDrop(false);
+              }}
             />
           </View>
         </View>

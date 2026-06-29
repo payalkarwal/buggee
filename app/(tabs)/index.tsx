@@ -10,10 +10,16 @@ import {
   Alert,
   Animated,
   Dimensions,
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
@@ -93,6 +99,15 @@ const tierDetails = {
   },
 };
 
+const NEARBY_PLACES = [
+  { id: '1', name: '5/127, Block 17', address: 'Block 5, Subhash Nagar, Delhi', distance: '34 km' },
+  { id: '2', name: 'Gurgaon Railway Station Parking', address: 'Kheri, Ashok Vihar, Sector 3, Gurugram, Haryana', distance: '16 km' },
+  { id: '3', name: 'Jagannath Community College (JCC)', address: 'Community Center, Plot No. 2 & 3, Sector 3, Rohini', distance: '43 km' },
+  { id: '4', name: 'Centrum Plaza', address: 'Golf Course Rd, near ILM Institute, Sector 53', distance: '3.3 km' },
+  { id: '5', name: 'Huda City Centre Metro', address: 'Huda City Centre, Sector 29, New Delhi', distance: '7.5 km' },
+  { id: '6', name: 'Netaji Subhash Place Metro Station', address: 'Ring Rd, Near D Mall, Netaji Subhash Place', distance: '42 km' },
+];
+
 export default function HomeScreen() {
   const { colors, isDark } = useAppTheme();
   const params = useLocalSearchParams();
@@ -121,14 +136,73 @@ export default function HomeScreen() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isBookingDrawerOpen, setIsBookingDrawerOpen] = useState(false);
   const [isConfirmationDrawerOpen, setIsConfirmationDrawerOpen] = useState(false);
-  const [pickupLocation, setPickupLocation] = useState('Current Location');
-  const [dropLocation, setDropLocation] = useState('');
+  // Tier-specific locations
+  const [tierLocations, setTierLocations] = useState<{
+    Standard: { pickup: string; drop: string };
+    Delux: { pickup: string; drop: string };
+    VIP: { pickup: string; drop: string };
+  }>({
+    Standard: { pickup: 'Current Location', drop: '' },
+    Delux: { pickup: 'Current Location', drop: '' },
+    VIP: { pickup: 'Current Location', drop: '' },
+  });
+
+  // Get current tier's locations
+  const currentPickup = selectedTier ? tierLocations[selectedTier].pickup : 'Current Location';
+  const currentDrop = selectedTier ? tierLocations[selectedTier].drop : '';
+  const [isLocationDrawerOpen, setIsLocationDrawerOpen] = useState(false);
+  const [locationSelectionType, setLocationSelectionType] = useState<'pickup' | 'drop'>('pickup');
+  const [isWaitingDrawerOpen, setIsWaitingDrawerOpen] = useState(false);
+  const [isRideDetailsDrawerOpen, setIsRideDetailsDrawerOpen] = useState(false);
+  const [isCancelReasonsDrawerOpen, setIsCancelReasonsDrawerOpen] = useState(false);
+  const [isCancelConfirmDrawerOpen, setIsCancelConfirmDrawerOpen] = useState(false);
+  const [selectedCancelReason, setSelectedCancelReason] = useState<string | null>(null);
+  const [shareTripEnabled, setShareTripEnabled] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'cash' | 'card'>('cash');
+  const [isRideBookedDrawerOpen, setIsRideBookedDrawerOpen] = useState(false);
+  const [driverArrivalMins, setDriverArrivalMins] = useState(5);
+  const [rideOTP] = useState('4829');
+  const [cancelInitiatedFrom, setCancelInitiatedFrom] = useState<'waiting' | 'booked' | null>(null);
+  const [rideDetailsOpenedFrom, setRideDetailsOpenedFrom] = useState<'waiting' | 'booked' | null>(null);
+  const [driverDetails] = useState({
+    name: 'Rajesh Kumar',
+    rating: 4.8,
+    trips: 1247,
+    photo: null,
+    car: {
+      model: 'Maruti Swift Dzire',
+      color: 'White',
+      plateNumber: 'DL 4C AB 1234',
+    }
+  });
+
+  // Store booked ride details (persists across drawer transitions)
+  const [bookedRide, setBookedRide] = useState<{
+    tier: 'Standard' | 'Delux' | 'VIP';
+    pickup: string;
+    drop: string;
+    price: string;
+  } | null>(null);
   const drawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const drawerFadeAnim = useRef(new Animated.Value(0)).current;
   const bookingDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const bookingDrawerFadeAnim = useRef(new Animated.Value(0)).current;
   const confirmationDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const confirmationDrawerFadeAnim = useRef(new Animated.Value(0)).current;
+  const locationDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const locationDrawerFadeAnim = useRef(new Animated.Value(0)).current;
+  const waitingDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const waitingDrawerFadeAnim = useRef(new Animated.Value(0)).current;
+  const waitingPulseAnim = useRef(new Animated.Value(1)).current;
+  const waitingRippleAnim = useRef(new Animated.Value(0)).current;
+  const rideDetailsDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const rideDetailsDrawerFadeAnim = useRef(new Animated.Value(0)).current;
+  const cancelReasonsDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const cancelReasonsDrawerFadeAnim = useRef(new Animated.Value(0)).current;
+  const cancelConfirmDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const cancelConfirmDrawerFadeAnim = useRef(new Animated.Value(0)).current;
+  const rideBookedDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const rideBookedDrawerFadeAnim = useRef(new Animated.Value(0)).current;
   const tabBarAnim = useRef(new Animated.Value(1)).current;
 
   const openDrawer = (tier: 'Standard' | 'Delux' | 'VIP') => {
@@ -273,6 +347,287 @@ export default function HomeScreen() {
     });
   };
 
+  const openLocationDrawer = (type: 'pickup' | 'drop') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLocationSelectionType(type);
+    setIsLocationDrawerOpen(true);
+    Animated.parallel([
+      Animated.spring(locationDrawerSlideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 9,
+        useNativeDriver: true
+      }),
+      Animated.timing(locationDrawerFadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true
+      }),
+    ]).start();
+  };
+
+  const closeLocationDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.parallel([
+      Animated.timing(locationDrawerSlideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(locationDrawerFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+    ]).start(() => {
+      setIsLocationDrawerOpen(false);
+    });
+  };
+
+  const openWaitingDrawer = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setIsWaitingDrawerOpen(true);
+    Animated.parallel([
+      Animated.spring(waitingDrawerSlideAnim, {
+        toValue: 0,
+        tension: 45,
+        friction: 8,
+        useNativeDriver: true
+      }),
+      Animated.timing(waitingDrawerFadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true
+      }),
+    ]).start();
+  };
+
+  const closeWaitingDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.parallel([
+      Animated.timing(waitingDrawerSlideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(waitingDrawerFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+    ]).start(() => {
+      setIsWaitingDrawerOpen(false);
+    });
+  };
+
+  const openRideDetailsDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsRideDetailsDrawerOpen(true);
+    Animated.parallel([
+      Animated.spring(rideDetailsDrawerSlideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 9,
+        useNativeDriver: true
+      }),
+      Animated.timing(rideDetailsDrawerFadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true
+      }),
+    ]).start();
+  };
+
+  const closeRideDetailsDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.parallel([
+      Animated.timing(rideDetailsDrawerSlideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(rideDetailsDrawerFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+    ]).start(() => {
+      setIsRideDetailsDrawerOpen(false);
+    });
+  };
+
+  const openCancelReasonsDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsCancelReasonsDrawerOpen(true);
+    Animated.parallel([
+      Animated.spring(cancelReasonsDrawerSlideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 9,
+        useNativeDriver: true
+      }),
+      Animated.timing(cancelReasonsDrawerFadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true
+      }),
+    ]).start();
+  };
+
+  const closeCancelReasonsDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.parallel([
+      Animated.timing(cancelReasonsDrawerSlideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(cancelReasonsDrawerFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+    ]).start(() => {
+      setIsCancelReasonsDrawerOpen(false);
+    });
+  };
+
+  const openCancelConfirmDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsCancelConfirmDrawerOpen(true);
+    Animated.parallel([
+      Animated.spring(cancelConfirmDrawerSlideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 9,
+        useNativeDriver: true
+      }),
+      Animated.timing(cancelConfirmDrawerFadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true
+      }),
+    ]).start();
+  };
+
+  const closeCancelConfirmDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.parallel([
+      Animated.timing(cancelConfirmDrawerSlideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(cancelConfirmDrawerFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+    ]).start(() => {
+      setIsCancelConfirmDrawerOpen(false);
+    });
+  };
+
+  const openRideBookedDrawer = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setIsRideBookedDrawerOpen(true);
+    // Generate random arrival time between 3-8 mins
+    setDriverArrivalMins(Math.floor(Math.random() * 6) + 3);
+    Animated.parallel([
+      Animated.spring(rideBookedDrawerSlideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 9,
+        useNativeDriver: true
+      }),
+      Animated.timing(rideBookedDrawerFadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true
+      }),
+    ]).start();
+  };
+
+  const closeRideBookedDrawer = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.parallel([
+      Animated.timing(rideBookedDrawerSlideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(rideBookedDrawerFadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true
+      }),
+    ]).start(() => {
+      setIsRideBookedDrawerOpen(false);
+    });
+  };
+
+  const handleCancelReasonSelect = (reason: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedCancelReason(reason);
+    closeCancelReasonsDrawer();
+    setTimeout(() => openCancelConfirmDrawer(), 300);
+  };
+
+  const handleConfirmCancel = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    closeCancelConfirmDrawer();
+    closeRideDetailsDrawer();
+    closeWaitingDrawer();
+    setSelectedCancelReason(null);
+    setBookedRide(null);
+    setShareTripEnabled(false);
+  };
+
+  const handleWaitForDriver = () => {
+    closeCancelConfirmDrawer();
+    closeRideDetailsDrawer();
+    // Route back to the correct drawer based on where cancel was initiated
+    setTimeout(() => {
+      if (cancelInitiatedFrom === 'booked') {
+        openRideBookedDrawer();
+      } else {
+        openWaitingDrawer();
+      }
+      setCancelInitiatedFrom(null);
+    }, 300);
+  };
+
+  const handleSelectPlace = (place: typeof NEARBY_PLACES[0]) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!selectedTier) return;
+
+    // Update tier-specific location
+    setTierLocations(prev => ({
+      ...prev,
+      [selectedTier]: {
+        ...prev[selectedTier],
+        [locationSelectionType]: place.name,
+      }
+    }));
+    // Don't close the drawer - let user select both locations
+  };
+
+  const handleLocationInputChange = (type: 'pickup' | 'drop', value: string) => {
+    if (!selectedTier) return;
+    setTierLocations(prev => ({
+      ...prev,
+      [selectedTier]: {
+        ...prev[selectedTier],
+        [type]: value,
+      }
+    }));
+  };
+
+  const handleDoneSelectingLocations = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    closeLocationDrawer();
+  };
+
   const modalSlideAnim = useRef(new Animated.Value(500)).current;
   const modalFadeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -402,19 +757,57 @@ export default function HomeScreen() {
     loadLocation();
   }, []);
 
-  // Handle returning from ride-options with updated locations
+  // Waiting drawer animations
   useEffect(() => {
-    if (returnedPickup || returnedDrop) {
-      if (returnedPickup) setPickupLocation(returnedPickup);
-      if (returnedDrop) setDropLocation(returnedDrop);
+    if (isWaitingDrawerOpen) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(waitingPulseAnim, { toValue: 1.15, duration: 1400, useNativeDriver: true }),
+          Animated.timing(waitingPulseAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
+        ])
+      );
+      pulse.start();
 
-      // Re-open the booking drawer with the updated locations
-      if (returnedTier) {
-        setSelectedTier(returnedTier as 'Standard' | 'Delux' | 'VIP');
-        setTimeout(() => openBookingDrawer(returnedTier as 'Standard' | 'Delux' | 'VIP'), 300);
-      }
+      const ripple = Animated.loop(
+        Animated.sequence([
+          Animated.timing(waitingRippleAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+          Animated.timing(waitingRippleAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
+        ])
+      );
+      ripple.start();
+
+      return () => {
+        pulse.stop();
+        ripple.stop();
+      };
     }
-  }, [returnedPickup, returnedDrop, returnedTier]);
+  }, [isWaitingDrawerOpen]);
+
+  // Auto-transition to Ride Booked drawer after 12 seconds
+  useEffect(() => {
+    if (isWaitingDrawerOpen && !isRideBookedDrawerOpen) {
+      const timer = setTimeout(() => {
+        // Close waiting drawer and open ride booked drawer
+        Animated.parallel([
+          Animated.timing(waitingDrawerSlideAnim, {
+            toValue: SCREEN_HEIGHT,
+            duration: 220,
+            useNativeDriver: true
+          }),
+          Animated.timing(waitingDrawerFadeAnim, {
+            toValue: 0,
+            duration: 180,
+            useNativeDriver: true
+          }),
+        ]).start(() => {
+          setIsWaitingDrawerOpen(false);
+          setTimeout(() => openRideBookedDrawer(), 200);
+        });
+      }, 12000); // 12 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [isWaitingDrawerOpen, isRideBookedDrawerOpen]);
 
   // ── LIVE precise GPS — pin exact spot pe rehta hai aur move pe update hota hai ──
   // NOTE: Real precision sirf physical device pe milti hai (simulator fake/0 deta hai).
@@ -500,8 +893,8 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Map */}
-      <View style={{ height: SCREEN_HEIGHT * 0.50 }}>
+      {/* Map - Full screen when booking drawer is open */}
+      <View style={{ height: isBookingDrawerOpen ? SCREEN_HEIGHT : SCREEN_HEIGHT * 0.50 }}>
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
@@ -566,6 +959,7 @@ export default function HomeScreen() {
               </Animated.View>
             </Marker>
           )}
+
         </MapView>
       </View>
 
@@ -601,15 +995,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </SafeAreaContextView>
-
-      {/* Location Button - Show precise location */}
-      <TouchableOpacity
-        style={[styles.locationFab, { backgroundColor: colors.card, borderColor: colors.border }]}
-        onPress={() => setLocationModalVisible(true)}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="location" size={22} color={colors.accent} />
-      </TouchableOpacity>
 
       {/* Recenter FAB */}
       <TouchableOpacity
@@ -908,25 +1293,14 @@ export default function HomeScreen() {
                     {/* Pickup Location */}
                     <TouchableOpacity
                       style={styles.simpleLocationRow}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        closeBookingDrawer();
-                        setTimeout(() => {
-                          const params = new URLSearchParams();
-                          params.append('tier', selectedTier);
-                          params.append('type', 'pickup');
-                          params.append('pickup', pickupLocation);
-                          if (dropLocation) params.append('drop', dropLocation);
-                          router.push('/rides/ride-options?' + params.toString());
-                        }, 300);
-                      }}
+                      onPress={() => openLocationDrawer('pickup')}
                       activeOpacity={0.7}
                     >
                       <View style={styles.simpleLocationLeft}>
                         <View style={[styles.simpleLocationDot, { backgroundColor: colors.accent }]} />
                         <View style={styles.simpleLocationTextWrap}>
                           <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>Pickup location</Text>
-                          <Text style={[styles.simpleLocationValue, { color: colors.text }]}>{pickupLocation}</Text>
+                          <Text style={[styles.simpleLocationValue, { color: colors.text }]}>{currentPickup}</Text>
                         </View>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
@@ -940,26 +1314,15 @@ export default function HomeScreen() {
                     {/* Drop Location */}
                     <TouchableOpacity
                       style={styles.simpleLocationRow}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        closeBookingDrawer();
-                        setTimeout(() => {
-                          const params = new URLSearchParams();
-                          params.append('tier', selectedTier);
-                          params.append('type', 'drop');
-                          params.append('pickup', pickupLocation);
-                          if (dropLocation) params.append('drop', dropLocation);
-                          router.push('/rides/ride-options?' + params.toString());
-                        }, 300);
-                      }}
+                      onPress={() => openLocationDrawer('drop')}
                       activeOpacity={0.7}
                     >
                       <View style={styles.simpleLocationLeft}>
                         <View style={[styles.simpleLocationSquare, { borderColor: '#E53935' }]} />
                         <View style={styles.simpleLocationTextWrap}>
                           <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>Drop off location</Text>
-                          <Text style={[styles.simpleLocationValue, { color: dropLocation ? colors.text : colors.textSub }]}>
-                            {dropLocation || 'Where to?'}
+                          <Text style={[styles.simpleLocationValue, { color: currentDrop ? colors.text : colors.textSub }]}>
+                            {currentDrop || 'Where to?'}
                           </Text>
                         </View>
                       </View>
@@ -969,15 +1332,22 @@ export default function HomeScreen() {
 
                   {/* Continue Button */}
                   <TouchableOpacity
-                    style={[styles.continueButton, { backgroundColor: colors.accent, opacity: (pickupLocation && dropLocation) ? 1 : 0.5 }]}
+                    style={[styles.continueButton, { backgroundColor: colors.accent, opacity: (currentPickup && currentDrop) ? 1 : 0.5 }]}
                     onPress={() => {
-                      if (pickupLocation && dropLocation) {
+                      if (currentPickup && currentDrop && selectedTier) {
+                        // Save booked ride details before closing drawer
+                        setBookedRide({
+                          tier: selectedTier,
+                          pickup: currentPickup,
+                          drop: currentDrop,
+                          price: tierDetails[selectedTier].price,
+                        });
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         closeBookingDrawer();
                         setTimeout(() => openConfirmationDrawer(), 300);
                       }
                     }}
-                    disabled={!pickupLocation || !dropLocation}
+                    disabled={!currentPickup || !currentDrop}
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.continueButtonText, { color: '#000' }]}>Continue</Text>
@@ -1007,7 +1377,7 @@ export default function HomeScreen() {
                   <View style={[styles.simpleLocationDot, { backgroundColor: colors.accent }]} />
                   <View style={styles.confirmationLocationTextWrap}>
                     <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>PICKUP</Text>
-                    <Text style={[styles.confirmationLocationValue, { color: colors.text }]}>{pickupLocation}</Text>
+                    <Text style={[styles.confirmationLocationValue, { color: colors.text }]}>{bookedRide?.pickup || currentPickup}</Text>
                   </View>
                 </View>
 
@@ -1021,7 +1391,7 @@ export default function HomeScreen() {
                   <View style={[styles.simpleLocationSquare, { borderColor: '#E53935' }]} />
                   <View style={styles.confirmationLocationTextWrap}>
                     <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>DROP-OFF</Text>
-                    <Text style={[styles.confirmationLocationValue, { color: colors.text }]}>{dropLocation}</Text>
+                    <Text style={[styles.confirmationLocationValue, { color: colors.text }]}>{bookedRide?.drop || currentDrop}</Text>
                   </View>
                 </View>
               </View>
@@ -1030,15 +1400,671 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[styles.confirmPickupButton, { backgroundColor: colors.accent }]}
                 onPress={() => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                   closeConfirmationDrawer();
-                  setTimeout(() => {
-                    router.push('/rides/ride-options?tier=' + selectedTier + '&pickup=' + encodeURIComponent(pickupLocation) + '&drop=' + encodeURIComponent(dropLocation) + '&autoShow=true');
-                  }, 300);
+                  setTimeout(() => openWaitingDrawer(), 300);
                 }}
                 activeOpacity={0.85}
               >
                 <Text style={[styles.confirmPickupButtonText, { color: '#000' }]}>Confirm Pickup</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+
+      {/* Location Selection Drawer */}
+      <Modal visible={isLocationDrawerOpen} animationType="none" transparent onRequestClose={handleDoneSelectingLocations}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: locationDrawerFadeAnim }]}>
+            <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={handleDoneSelectingLocations} />
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={{ width: '100%' }}
+            >
+              <Animated.View style={[styles.locationDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: locationDrawerSlideAnim }] }]}>
+                <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+
+                {/* Header */}
+                <View style={styles.locationDrawerHeader}>
+              <TouchableOpacity onPress={handleDoneSelectingLocations} style={[styles.locationBackButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Ionicons name="arrow-back" size={20} color={colors.text} />
+              </TouchableOpacity>
+              <Text style={[styles.locationDrawerTitle, { color: colors.text }]}>
+                Select Locations
+              </Text>
+              <TouchableOpacity onPress={handleDoneSelectingLocations} style={styles.doneButton}>
+                <Text style={[styles.doneButtonText, { color: colors.accent }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Location Input Card */}
+            <View style={[styles.locationInputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {/* Pickup Input */}
+              <TouchableOpacity
+                style={[styles.locationInputRow, locationSelectionType === 'pickup' && { backgroundColor: colors.accentDim, borderRadius: 12, marginHorizontal: -8, paddingHorizontal: 8 }]}
+                onPress={() => setLocationSelectionType('pickup')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.locationDotWrap}>
+                  <View style={[styles.locationDotOuter, { borderColor: colors.accent }]}>
+                    <View style={[styles.locationDotInner, { backgroundColor: colors.accent }]} />
+                  </View>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.locationInputLabel, { color: colors.textSub }]}>Pickup</Text>
+                  <TextInput
+                    style={[styles.locationTextInput, { color: colors.text }]}
+                    value={currentPickup}
+                    onChangeText={(text) => handleLocationInputChange('pickup', text)}
+                    placeholder="Enter pickup location"
+                    placeholderTextColor={colors.textSub}
+                    onFocus={() => setLocationSelectionType('pickup')}
+                  />
+                </View>
+                {locationSelectionType === 'pickup' && (
+                  <View style={[styles.activeIndicator, { backgroundColor: colors.accent }]} />
+                )}
+              </TouchableOpacity>
+
+              {/* Divider */}
+              <View style={styles.locationInputDivider}>
+                <View style={[styles.locationDividerLine, { backgroundColor: colors.border }]} />
+              </View>
+
+              {/* Drop Input */}
+              <TouchableOpacity
+                style={[styles.locationInputRow, locationSelectionType === 'drop' && { backgroundColor: colors.accentDim, borderRadius: 12, marginHorizontal: -8, paddingHorizontal: 8 }]}
+                onPress={() => setLocationSelectionType('drop')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.locationDotWrap}>
+                  <View style={[styles.locationSquare, { borderColor: '#E53935' }]} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.locationInputLabel, { color: colors.textSub }]}>Drop off</Text>
+                  <TextInput
+                    style={[styles.locationTextInput, { color: currentDrop ? colors.text : colors.textSub }]}
+                    value={currentDrop}
+                    onChangeText={(text) => handleLocationInputChange('drop', text)}
+                    placeholder="Where to?"
+                    placeholderTextColor={colors.textSub}
+                    onFocus={() => setLocationSelectionType('drop')}
+                  />
+                </View>
+                {locationSelectionType === 'drop' && (
+                  <View style={[styles.activeIndicator, { backgroundColor: '#E53935' }]} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Nearby Places List */}
+            <FlatList
+              data={NEARBY_PLACES}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.nearbyPlacesList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.nearbyPlaceItem, { borderColor: colors.border }]}
+                  onPress={() => handleSelectPlace(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.nearbyPlaceIcon, { backgroundColor: colors.surface }]}>
+                    <Ionicons name="location-outline" size={20} color={colors.textSub} />
+                  </View>
+                  <View style={styles.nearbyPlaceInfo}>
+                    <Text style={[styles.nearbyPlaceName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                    <Text style={[styles.nearbyPlaceAddress, { color: colors.textSub }]} numberOfLines={1}>{item.address}</Text>
+                  </View>
+                  <Text style={[styles.nearbyPlaceDistance, { color: colors.textSub }]}>{item.distance}</Text>
+                </TouchableOpacity>
+              )}
+              />
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </Animated.View>
+      </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Waiting/Ride Requested Drawer */}
+      <Modal visible={isWaitingDrawerOpen} animationType="none" transparent onRequestClose={closeWaitingDrawer}>
+        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: waitingDrawerFadeAnim }]}>
+          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => {}} />
+          <Animated.View style={[styles.waitingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: waitingDrawerSlideAnim }] }]}>
+            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+
+            {/* Animated Loading Icon */}
+            <View style={styles.waitingIconContainer}>
+              <Animated.View style={[styles.waitingRipple, {
+                borderColor: colors.accent,
+                transform: [{ scale: waitingRippleAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] }) }],
+                opacity: waitingRippleAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.4, 0.1, 0] }),
+              }]} />
+              <Animated.View style={[styles.waitingPulseOuter, { backgroundColor: colors.accentDim, transform: [{ scale: waitingPulseAnim }] }]}>
+                <View style={[styles.waitingPulseInner, { backgroundColor: colors.accent }]}>
+                  <MaterialCommunityIcons name="car-side" size={26} color="#000" />
+                </View>
+              </Animated.View>
+            </View>
+
+            {/* Header */}
+            <View style={styles.waitingHeaderCenter}>
+              <Text style={[styles.waitingTitle, { color: colors.text }]}>Ride Requested</Text>
+              <Text style={[styles.waitingSubtitle, { color: colors.textSub }]}>Finding drivers nearby...</Text>
+            </View>
+
+            {/* Ride Details Card */}
+            <View style={[styles.waitingDetailsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {/* Pickup */}
+              <View style={styles.waitingDetailRow}>
+                <View style={[styles.simpleLocationDot, { backgroundColor: colors.accent }]} />
+                <View style={styles.waitingDetailTextWrap}>
+                  <Text style={[styles.waitingDetailLabel, { color: colors.textSub }]}>PICKUP</Text>
+                  <Text style={[styles.waitingDetailValue, { color: colors.text }]} numberOfLines={1}>{bookedRide?.pickup || 'Current Location'}</Text>
+                </View>
+              </View>
+
+              <View style={styles.waitingRouteLine}>
+                <View style={[styles.simpleRouteLinePath, { backgroundColor: colors.border }]} />
+              </View>
+
+              {/* Drop */}
+              <View style={styles.waitingDetailRow}>
+                <View style={[styles.simpleLocationSquare, { borderColor: '#E53935' }]} />
+                <View style={styles.waitingDetailTextWrap}>
+                  <Text style={[styles.waitingDetailLabel, { color: colors.textSub }]}>DROP-OFF</Text>
+                  <Text style={[styles.waitingDetailValue, { color: colors.text }]} numberOfLines={1}>{bookedRide?.drop || 'Destination'}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Buggee Promo Banner */}
+            <View style={[styles.promoBanner, { backgroundColor: colors.accent }]}>
+              <View style={styles.promoLeft}>
+                <View style={styles.promoIconWrap}>
+                  <Ionicons name="pricetag" size={20} color="#000" />
+                </View>
+                <View style={styles.promoTextWrap}>
+                  <Text style={styles.promoTitle}>₹50 OFF on your first ride!</Text>
+                  <Text style={styles.promoCode}>Use code: BUGGEE50</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.promoCopyBtn} activeOpacity={0.8}>
+                <Ionicons name="copy-outline" size={18} color="#000" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Fare & Payment Info */}
+            <View style={[styles.waitingFareCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.fareRowCompact}>
+                {/* Left Section - Money Icon & Price */}
+                <View style={styles.fareLeftSection}>
+                  <View style={[styles.fareIconWrap, { backgroundColor: colors.accentDim }]}>
+                    <Ionicons name="cash" size={18} color={colors.accent} />
+                  </View>
+                  <View style={styles.fareAmountWrap}>
+                    <Text style={[styles.fareAmountBig, { color: colors.text }]}>{bookedRide?.price || '₹49'}</Text>
+                    <View style={[styles.farePaymentChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                      <Ionicons name={selectedPaymentMethod === 'cash' ? 'cash-outline' : 'card-outline'} size={12} color={colors.accent} />
+                      <Text style={[styles.farePaymentText, { color: colors.text }]}>{selectedPaymentMethod === 'cash' ? 'Cash' : 'Card'}</Text>
+                    </View>
+                  </View>
+                </View>
+                {/* Three Dots - Far Right */}
+                <TouchableOpacity
+                  style={[styles.fareThreeDotsBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  onPress={() => {
+                    setRideDetailsOpenedFrom('waiting');
+                    openRideDetailsDrawer();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="ellipsis-vertical" size={16} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Cancel Button */}
+            <TouchableOpacity
+              style={[styles.cancelRideButton, { borderColor: colors.border }]}
+              onPress={() => {
+                setCancelInitiatedFrom('waiting');
+                closeWaitingDrawer();
+                setTimeout(() => openCancelReasonsDrawer(), 100);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.cancelRideText, { color: '#E53935' }]}>Cancel Ride</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+
+      {/* Ride Details Drawer */}
+      <Modal visible={isRideDetailsDrawerOpen} animationType="none" transparent onRequestClose={closeRideDetailsDrawer}>
+        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: rideDetailsDrawerFadeAnim }]}>
+          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeRideDetailsDrawer} />
+          <Animated.View style={[styles.rideDetailsDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: rideDetailsDrawerSlideAnim }] }]}>
+            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+
+            {/* Header */}
+            <Text style={[styles.rideDetailsTitle, { color: colors.text }]}>Ride Details</Text>
+
+            {/* Locations Card */}
+            <View style={[styles.rideDetailsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {/* Pickup */}
+              <View style={styles.rideDetailsRow}>
+                <View style={[styles.simpleLocationDot, { backgroundColor: colors.accent }]} />
+                <View style={styles.rideDetailsTextWrap}>
+                  <Text style={[styles.rideDetailsLabel, { color: colors.textSub }]}>PICKUP</Text>
+                  <Text style={[styles.rideDetailsValue, { color: colors.text }]} numberOfLines={1}>{bookedRide?.pickup || 'Current Location'}</Text>
+                </View>
+              </View>
+
+              <View style={styles.rideDetailsRouteLine}>
+                <View style={[styles.simpleRouteLinePath, { backgroundColor: colors.border }]} />
+              </View>
+
+              {/* Drop */}
+              <View style={styles.rideDetailsRow}>
+                <View style={[styles.simpleLocationSquare, { borderColor: '#E53935' }]} />
+                <View style={styles.rideDetailsTextWrap}>
+                  <Text style={[styles.rideDetailsLabel, { color: colors.textSub }]}>DROP-OFF</Text>
+                  <Text style={[styles.rideDetailsValue, { color: colors.text }]} numberOfLines={1}>{bookedRide?.drop || 'Destination'}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Price Section */}
+            <View style={[styles.rideDetailsPriceCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.rideDetailsPriceRow}>
+                <View style={styles.rideDetailsPriceLeft}>
+                  <View style={[styles.priceIconWrap, { backgroundColor: colors.accentDim }]}>
+                    <Ionicons name="pricetag-outline" size={20} color={colors.accent} />
+                  </View>
+                  <View>
+                    <Text style={[styles.rideDetailsPriceLabel, { color: colors.textSub }]}>Total Fare</Text>
+                    <Text style={[styles.rideDetailsPriceValue, { color: colors.text }]}>
+                      {bookedRide?.price || '₹ 49'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Payment Method Selection */}
+            <View style={styles.paymentMethodSection}>
+              <Text style={[styles.paymentMethodTitle, { color: colors.text }]}>Payment Method</Text>
+              <View style={styles.paymentMethodOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodCard,
+                    { backgroundColor: colors.surface, borderColor: selectedPaymentMethod === 'cash' ? colors.accent : colors.border },
+                    selectedPaymentMethod === 'cash' && { borderWidth: 2 }
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedPaymentMethod('cash');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.paymentMethodIcon, { backgroundColor: selectedPaymentMethod === 'cash' ? colors.accentDim : colors.card }]}>
+                    <Ionicons name="cash-outline" size={22} color={selectedPaymentMethod === 'cash' ? colors.accent : colors.textSub} />
+                  </View>
+                  <Text style={[styles.paymentMethodText, { color: selectedPaymentMethod === 'cash' ? colors.accent : colors.text }]}>Cash</Text>
+                  {selectedPaymentMethod === 'cash' && (
+                    <View style={[styles.paymentMethodCheck, { backgroundColor: colors.accent }]}>
+                      <Ionicons name="checkmark" size={12} color="#000" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodCard,
+                    { backgroundColor: colors.surface, borderColor: selectedPaymentMethod === 'card' ? colors.accent : colors.border },
+                    selectedPaymentMethod === 'card' && { borderWidth: 2 }
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedPaymentMethod('card');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.paymentMethodIcon, { backgroundColor: selectedPaymentMethod === 'card' ? colors.accentDim : colors.card }]}>
+                    <Ionicons name="card-outline" size={22} color={selectedPaymentMethod === 'card' ? colors.accent : colors.textSub} />
+                  </View>
+                  <Text style={[styles.paymentMethodText, { color: selectedPaymentMethod === 'card' ? colors.accent : colors.text }]}>Card</Text>
+                  {selectedPaymentMethod === 'card' && (
+                    <View style={[styles.paymentMethodCheck, { backgroundColor: colors.accent }]}>
+                      <Ionicons name="checkmark" size={12} color="#000" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Share Trip Button */}
+            <TouchableOpacity
+              style={[
+                styles.shareBoxButton,
+                { backgroundColor: shareTripEnabled ? colors.accentDim : colors.surface, borderColor: shareTripEnabled ? colors.accent : colors.border }
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShareTripEnabled(!shareTripEnabled);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.shareBoxLeft}>
+                <View style={[styles.shareLocationIcon, { backgroundColor: shareTripEnabled ? colors.accent : colors.card }]}>
+                  <Ionicons name="location" size={20} color={shareTripEnabled ? '#000' : colors.textSub} />
+                </View>
+                <View style={styles.shareBoxTextWrap}>
+                  <Text style={[styles.shareBoxTitle, { color: shareTripEnabled ? colors.accent : colors.text }]}>Share Trip</Text>
+                  <Text style={[styles.shareBoxDesc, { color: colors.textSub }]}>Let friends track your ride</Text>
+                </View>
+              </View>
+              <View style={[styles.shareBoxIndicator, { backgroundColor: shareTripEnabled ? colors.accent : colors.border }]}>
+                <Ionicons name="share-social" size={16} color={shareTripEnabled ? '#000' : colors.textSub} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Action Buttons */}
+            <View style={styles.rideDetailsButtons}>
+              <TouchableOpacity
+                style={[styles.cancelRideDetailButton, { borderColor: '#E53935' }]}
+                onPress={() => {
+                  setCancelInitiatedFrom(rideDetailsOpenedFrom);
+                  closeRideDetailsDrawer();
+                  setTimeout(() => openCancelReasonsDrawer(), 300);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle-outline" size={20} color="#E53935" />
+                <Text style={[styles.cancelRideDetailText, { color: '#E53935' }]}>Cancel Ride</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.closeDetailButton, { backgroundColor: colors.accent }]}
+                onPress={closeRideDetailsDrawer}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.closeDetailText, { color: '#000' }]}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+
+      {/* Cancel Reasons Drawer */}
+      <Modal visible={isCancelReasonsDrawerOpen} animationType="none" transparent onRequestClose={closeCancelReasonsDrawer}>
+        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: cancelReasonsDrawerFadeAnim }]}>
+          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeCancelReasonsDrawer} />
+          <Animated.View style={[styles.cancelReasonsDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: cancelReasonsDrawerSlideAnim }] }]}>
+            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+
+            {/* Header */}
+            <Text style={[styles.cancelReasonsTitle, { color: colors.text }]}>Why do you want to cancel?</Text>
+            <Text style={[styles.cancelReasonsSubtitle, { color: colors.textSub }]}>Help us improve by selecting a reason</Text>
+
+            {/* Reason Options */}
+            <View style={styles.cancelReasonsList}>
+              <TouchableOpacity
+                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
+                onPress={() => handleCancelReasonSelect('Driver is too far')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                  <Ionicons name="time-outline" size={22} color={colors.textSub} />
+                </View>
+                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Driver is too far</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
+                onPress={() => handleCancelReasonSelect('Changed my mind')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                  <Ionicons name="refresh-outline" size={22} color={colors.textSub} />
+                </View>
+                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Changed my mind</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
+                onPress={() => handleCancelReasonSelect('Wrong pickup location')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                  <Ionicons name="location-outline" size={22} color={colors.textSub} />
+                </View>
+                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Wrong pickup location</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
+                onPress={() => handleCancelReasonSelect('Price is too high')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                  <Ionicons name="pricetag-outline" size={22} color={colors.textSub} />
+                </View>
+                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Price is too high</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
+                onPress={() => handleCancelReasonSelect('Other reason')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                  <Ionicons name="ellipsis-horizontal-outline" size={22} color={colors.textSub} />
+                </View>
+                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Other reason</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Keep My Ride Button */}
+            <TouchableOpacity
+              style={[styles.keepRideButton, { backgroundColor: colors.accent }]}
+              onPress={() => {
+                closeCancelReasonsDrawer();
+                // Route back to the correct drawer based on where cancel was initiated
+                setTimeout(() => {
+                  if (cancelInitiatedFrom === 'booked') {
+                    openRideBookedDrawer();
+                  } else if (cancelInitiatedFrom === 'waiting') {
+                    openWaitingDrawer();
+                  }
+                  setCancelInitiatedFrom(null);
+                }, 300);
+              }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="car-outline" size={20} color="#000" />
+              <Text style={[styles.keepRideText, { color: '#000' }]}>Keep My Ride</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+
+      {/* Cancel Confirmation Drawer */}
+      <Modal visible={isCancelConfirmDrawerOpen} animationType="none" transparent onRequestClose={closeCancelConfirmDrawer}>
+        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: cancelConfirmDrawerFadeAnim }]}>
+          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeCancelConfirmDrawer} />
+          <Animated.View style={[styles.cancelConfirmDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: cancelConfirmDrawerSlideAnim }] }]}>
+            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+
+            {/* Warning Icon */}
+            <View style={styles.cancelConfirmIconWrap}>
+              <View style={[styles.cancelConfirmIconOuter, { backgroundColor: 'rgba(229, 57, 53, 0.15)' }]}>
+                <View style={[styles.cancelConfirmIconInner, { backgroundColor: '#E53935' }]}>
+                  <Ionicons name="warning-outline" size={32} color="#FFF" />
+                </View>
+              </View>
+            </View>
+
+            {/* Text */}
+            <Text style={[styles.cancelConfirmTitle, { color: colors.text }]}>Cancel Ride?</Text>
+            <Text style={[styles.cancelConfirmSubtitle, { color: colors.textSub }]}>
+              {selectedCancelReason ? `Reason: ${selectedCancelReason}` : 'Are you sure you want to cancel this ride?'}
+            </Text>
+            <Text style={[styles.cancelConfirmWarning, { color: colors.textSub }]}>
+              Cancellation charges may apply if done frequently.
+            </Text>
+
+            {/* Action Buttons */}
+            <View style={styles.cancelConfirmButtons}>
+              <TouchableOpacity
+                style={[styles.waitForDriverButton, { borderColor: colors.border }]}
+                onPress={handleWaitForDriver}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="time-outline" size={20} color={colors.text} />
+                <Text style={[styles.waitForDriverText, { color: colors.text }]}>Wait for Driver</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.confirmCancelButton, { backgroundColor: '#E53935' }]}
+                onPress={handleConfirmCancel}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.confirmCancelText, { color: '#FFF' }]}>Cancel Request</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
+
+      {/* Ride Booked Drawer */}
+      <Modal visible={isRideBookedDrawerOpen} animationType="none" transparent onRequestClose={closeRideBookedDrawer}>
+        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: rideBookedDrawerFadeAnim }]}>
+          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => {}} />
+          <Animated.View style={[styles.rideBookedDrawer, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: rideBookedDrawerSlideAnim }] }]}>
+            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+
+            {/* Header with ETA and PIN */}
+            <View style={styles.rideBookedHeader}>
+              <View style={styles.rideBookedEtaWrap}>
+                <Text style={[styles.rideBookedEtaSingle, { color: colors.text }]}>
+                  Arriving in <Text style={styles.rideBookedEtaHighlight}>{driverArrivalMins} min</Text>
+                </Text>
+              </View>
+              <View style={styles.rideBookedHeaderRight}>
+                {/* PIN/OTP */}
+                <View style={[styles.otpBox, { backgroundColor: colors.accent }]}>
+                  <Text style={styles.otpLabel}>PIN</Text>
+                  <Text style={styles.otpValue}>{rideOTP}</Text>
+                </View>
+                {/* Three Dots */}
+                <TouchableOpacity
+                  style={[styles.rideBookedDotsBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  onPress={() => {
+                    setRideDetailsOpenedFrom('booked');
+                    closeRideBookedDrawer();
+                    setTimeout(() => openRideDetailsDrawer(), 200);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="ellipsis-vertical" size={18} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Driver Card */}
+            <View style={[styles.driverCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.driverInfoRow}>
+                {/* Driver Photo */}
+                <View style={[styles.driverPhotoWrap, { borderColor: colors.accent }]}>
+                  <Ionicons name="person" size={28} color={colors.accent} />
+                </View>
+                {/* Driver Details */}
+                <View style={styles.driverDetailsWrap}>
+                  <Text style={[styles.driverName, { color: colors.text }]}>{driverDetails.name}</Text>
+                  <View style={styles.driverRatingRow}>
+                    <Ionicons name="star" size={14} color="#FFB800" />
+                    <Text style={[styles.driverRating, { color: colors.text }]}>{driverDetails.rating}</Text>
+                    <View style={[styles.driverDot, { backgroundColor: colors.textSub }]} />
+                    <Text style={[styles.driverTrips, { color: colors.textSub }]}>{driverDetails.trips} trips</Text>
+                  </View>
+                </View>
+                {/* Call & Message Buttons */}
+                <View style={styles.driverActionsRow}>
+                  <TouchableOpacity style={[styles.driverActionBtn, { backgroundColor: colors.accentDim }]} activeOpacity={0.7}>
+                    <Ionicons name="call" size={18} color={colors.accent} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.driverActionBtn, { backgroundColor: colors.accentDim }]} activeOpacity={0.7}>
+                    <Ionicons name="chatbubble" size={18} color={colors.accent} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Divider */}
+              <View style={[styles.driverDivider, { backgroundColor: colors.border }]} />
+
+              {/* Car Details */}
+              <View style={styles.carDetailsRow}>
+                <View style={[styles.carIconWrap, { backgroundColor: colors.accentDim }]}>
+                  <MaterialCommunityIcons name="car-side" size={22} color={colors.accent} />
+                </View>
+                <View style={styles.carTextWrap}>
+                  <Text style={[styles.carModel, { color: colors.text }]}>{driverDetails.car.model}</Text>
+                  <Text style={[styles.carColor, { color: colors.textSub }]}>{driverDetails.car.color}</Text>
+                </View>
+                <View style={[styles.carNumberPlate, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[styles.carNumber, { color: colors.text }]}>{driverDetails.car.plateNumber}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Pickup Location Card */}
+            <View style={[styles.pickupCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.pickupCardRow}>
+                <View style={[styles.pickupIconWrap, { backgroundColor: colors.accentDim }]}>
+                  <Ionicons name="location" size={18} color={colors.accent} />
+                </View>
+                <View style={styles.pickupTextWrap}>
+                  <Text style={[styles.pickupLabel, { color: colors.textSub }]}>PICKUP POINT</Text>
+                  <Text style={[styles.pickupAddress, { color: colors.text }]} numberOfLines={1}>{bookedRide?.pickup || 'Current Location'}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.rideBookedActions}>
+              <TouchableOpacity
+                style={[styles.shareRideBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="share-social" size={18} color={colors.text} />
+                <Text style={[styles.shareRideBtnText, { color: colors.text }]}>Share Trip</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.safetyBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="shield-checkmark" size={18} color={colors.accent} />
+                <Text style={[styles.safetyBtnText, { color: colors.text }]}>Safety</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.cancelRideSmallBtn, { borderColor: '#E53935' }]}
+                onPress={() => {
+                  setCancelInitiatedFrom('booked');
+                  closeRideBookedDrawer();
+                  setTimeout(() => openCancelReasonsDrawer(), 200);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={22} color="#E53935" />
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -1090,23 +2116,6 @@ const styles = StyleSheet.create({
   },
 
   // ── FAB ──
-  locationFab: {
-    position: 'absolute',
-    right: 16,
-    top: SCREEN_HEIGHT * 0.50 - 122,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 6,
-    zIndex: 10,
-  },
   floatingFab: {
     position: 'absolute',
     right: 16,
@@ -1682,6 +2691,1072 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+
+  // Location Selection Drawer
+  locationDrawerContent: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    paddingTop: 10,
+    maxHeight: SCREEN_HEIGHT * 0.85,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 20,
+  },
+  locationDrawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  locationBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  locationDrawerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  locationInputCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  locationInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  locationDotWrap: {
+    width: 24,
+    alignItems: 'center',
+  },
+  locationDotOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationDotInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  locationSquare: {
+    width: 12,
+    height: 12,
+    borderRadius: 2,
+    borderWidth: 2,
+  },
+  locationInputLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  locationTextInput: {
+    fontSize: 15,
+    fontWeight: '600',
+    paddingVertical: 4,
+  },
+  locationInputDivider: {
+    paddingLeft: 8,
+    paddingVertical: 8,
+  },
+  locationDividerLine: {
+    width: 2,
+    height: 20,
+    borderRadius: 1,
+    marginLeft: 4,
+  },
+  nearbyPlacesList: {
+    paddingBottom: 20,
+  },
+  nearbyPlaceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  nearbyPlaceIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nearbyPlaceInfo: {
+    flex: 1,
+  },
+  nearbyPlaceName: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 3,
+  },
+  nearbyPlaceAddress: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  nearbyPlaceDistance: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  doneButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  activeIndicator: {
+    width: 4,
+    height: 36,
+    borderRadius: 2,
+    marginLeft: 8,
+  },
+
+  // Waiting/Ride Requested Drawer
+  waitingDrawerContent: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    paddingTop: 8,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 18,
+  },
+  waitingIconContainer: {
+    width: 100,
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 14,
+  },
+  waitingRipple: {
+    position: 'absolute',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 2,
+  },
+  waitingPulseOuter: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  waitingPulseInner: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  waitingTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  waitingSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 16,
+  },
+  waitingHeaderCenter: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  waitingDetailsCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    width: '100%',
+    marginBottom: 12,
+  },
+  waitingDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  waitingDetailTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  waitingDetailLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  waitingDetailValue: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  waitingRouteLine: {
+    paddingLeft: 6,
+    paddingVertical: 10,
+  },
+  cancelRideButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  cancelRideText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  // Waiting Drawer Header
+  waitingHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 8,
+  },
+  waitingTitleContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  threeDotsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+
+  // Ride Details Drawer
+  rideDetailsDrawerContent: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 20,
+  },
+  rideDetailsTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  rideDetailsCard: {
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  rideDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  rideDetailsTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  rideDetailsLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  rideDetailsValue: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  rideDetailsRouteLine: {
+    paddingLeft: 6,
+    paddingVertical: 10,
+  },
+  rideDetailsPriceCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  rideDetailsPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rideDetailsPriceLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  rideDetailsPriceLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  rideDetailsPriceValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  paymentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  paymentBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  shareTripCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  shareTripLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  shareTripIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareTripTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  shareTripDesc: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  toggleButton: {
+    width: 52,
+    height: 28,
+    borderRadius: 14,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  toggleButtonActive: {},
+  toggleKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleKnobActive: {
+    alignSelf: 'flex-end',
+  },
+  rideDetailsButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelRideDetailButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 8,
+  },
+  cancelRideDetailText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  closeDetailButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  closeDetailText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  // Cancel Reasons Drawer
+  cancelReasonsDrawerContent: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 20,
+  },
+  cancelReasonsTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  cancelReasonsSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  cancelReasonsList: {
+    marginBottom: 20,
+  },
+  cancelReasonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    gap: 14,
+  },
+  cancelReasonIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelReasonText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  keepRideButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 8,
+  },
+  keepRideText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  // Cancel Confirmation Drawer
+  cancelConfirmDrawerContent: {
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 20,
+  },
+  cancelConfirmIconWrap: {
+    marginVertical: 20,
+  },
+  cancelConfirmIconOuter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelConfirmIconInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelConfirmTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    marginBottom: 10,
+  },
+  cancelConfirmSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  cancelConfirmWarning: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 24,
+    fontStyle: 'italic',
+  },
+  cancelConfirmButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  waitForDriverButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 8,
+  },
+  waitForDriverText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  confirmCancelButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  confirmCancelText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  // Buggee Promo Banner
+  promoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+    width: '100%',
+  },
+  promoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  promoIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  promoTextWrap: {
+    flex: 1,
+  },
+  promoTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#000',
+  },
+  promoCode: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(0,0,0,0.7)',
+    marginTop: 2,
+  },
+  promoCopyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Waiting Fare Card
+  waitingFareCard: {
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    marginBottom: 12,
+    width: '100%',
+  },
+  fareRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fareLeftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  fareIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fareAmountWrap: {
+    gap: 2,
+  },
+  fareAmountBig: {
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  farePaymentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  farePaymentText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  fareThreeDotsBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  waitingFareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  waitingFareLeft: {},
+  waitingFareLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  waitingFareValue: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  waitingPaymentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  waitingPaymentText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // Price Icon Wrap
+  priceIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Payment Method Section
+  paymentMethodSection: {
+    marginBottom: 16,
+  },
+  paymentMethodTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  paymentMethodOptions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  paymentMethodCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
+  },
+  paymentMethodIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paymentMethodText: {
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+  },
+  paymentMethodCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Share Box Button
+  shareBoxButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    marginBottom: 20,
+  },
+  shareBoxLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  shareBoxTextWrap: {},
+  shareBoxTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  shareBoxDesc: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  shareBoxIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareLocationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Waiting Header Centered
+  waitingHeaderCentered: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
+  // Advertisement Poster
+  adPoster: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  adPosterContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  adPosterLeft: {
+    flex: 1,
+  },
+  adPosterDiscount: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#000',
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  adPosterTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#000',
+    marginBottom: 4,
+  },
+  adPosterCode: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(0,0,0,0.7)',
+  },
+  adPosterRight: {
+    marginLeft: 16,
+  },
+
+  // Ride Booked Drawer
+  rideBookedDrawer: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 18,
+  },
+  rideBookedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+    marginTop: 8,
+  },
+  rideBookedEtaWrap: {
+    flex: 1,
+  },
+  rideBookedEtaSingle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  rideBookedEtaHighlight: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#E53935',
+  },
+  rideBookedHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  otpBox: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  otpLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#000',
+    opacity: 0.7,
+  },
+  otpValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#000',
+    letterSpacing: 2,
+  },
+  rideBookedDotsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  driverCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  driverInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  driverPhotoWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  driverDetailsWrap: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  driverName: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  driverRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  driverRating: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  driverDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginHorizontal: 4,
+  },
+  driverTrips: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  driverActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  driverActionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  driverDivider: {
+    height: 1,
+    marginVertical: 14,
+  },
+  carDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  carIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  carTextWrap: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  carModel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  carColor: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  carNumberPlate: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  carNumber: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  pickupCard: {
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  pickupCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pickupIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickupTextWrap: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  pickupLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  pickupAddress: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  rideBookedActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  shareRideBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  shareRideBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  safetyBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  safetyBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cancelRideSmallBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
   },
 
 });
