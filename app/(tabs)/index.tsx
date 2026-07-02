@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -10,6 +10,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Easing,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -108,6 +109,7 @@ const NEARBY_PLACES = [
   { id: '6', name: 'Netaji Subhash Place Metro Station', address: 'Ring Rd, Near D Mall, Netaji Subhash Place', distance: '42 km' },
 ];
 
+
 export default function HomeScreen() {
   const { colors, isDark } = useAppTheme();
   const params = useLocalSearchParams();
@@ -129,8 +131,10 @@ export default function HomeScreen() {
 
   // ── Precise location pin state ──
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [currentLocationName, setCurrentLocationName] = useState<string>('');
   const [liveTracking, setLiveTracking] = useState(false);
   const centeredOnceRef = useRef(false); // first fix pe ek baar auto-center
+  const reverseGeocodedRef = useRef(false); // track if we've already reverse geocoded
 
   const [selectedTier, setSelectedTier] = useState<'Standard' | 'Delux' | 'VIP' | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -142,16 +146,20 @@ export default function HomeScreen() {
     Delux: { pickup: string; drop: string };
     VIP: { pickup: string; drop: string };
   }>({
-    Standard: { pickup: 'Current Location', drop: '' },
-    Delux: { pickup: 'Current Location', drop: '' },
-    VIP: { pickup: 'Current Location', drop: '' },
+    Standard: { pickup: '', drop: '' },
+    Delux: { pickup: '', drop: '' },
+    VIP: { pickup: '', drop: '' },
   });
 
   // Get current tier's locations
-  const currentPickup = selectedTier ? tierLocations[selectedTier].pickup : 'Current Location';
+  const currentPickup = selectedTier ? tierLocations[selectedTier].pickup : '';
   const currentDrop = selectedTier ? tierLocations[selectedTier].drop : '';
   const [isLocationDrawerOpen, setIsLocationDrawerOpen] = useState(false);
   const [locationSelectionType, setLocationSelectionType] = useState<'pickup' | 'drop'>('pickup');
+  const [locationSearchQuery, setLocationSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; address: string; distance: string; lat?: string; lon?: string }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isWaitingDrawerOpen, setIsWaitingDrawerOpen] = useState(false);
   const [isRideDetailsDrawerOpen, setIsRideDetailsDrawerOpen] = useState(false);
   const [isCancelReasonsDrawerOpen, setIsCancelReasonsDrawerOpen] = useState(false);
@@ -212,18 +220,20 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(drawerSlideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 9,
+        tension: 65,
+        friction: 11,
         useNativeDriver: true
       }),
       Animated.timing(drawerFadeAnim, {
         toValue: 1,
-        duration: 250,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start();
@@ -236,18 +246,20 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(bookingDrawerSlideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 9,
+        tension: 65,
+        friction: 11,
         useNativeDriver: true
       }),
       Animated.timing(bookingDrawerFadeAnim, {
         toValue: 1,
-        duration: 250,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start();
@@ -258,17 +270,20 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.timing(drawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(drawerFadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 1,
-        duration: 220,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -282,17 +297,20 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.timing(bookingDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(bookingDrawerFadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 1,
-        duration: 220,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -307,18 +325,20 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(confirmationDrawerSlideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 9,
+        tension: 65,
+        friction: 11,
         useNativeDriver: true
       }),
       Animated.timing(confirmationDrawerFadeAnim, {
         toValue: 1,
-        duration: 250,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start();
@@ -329,17 +349,20 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.timing(confirmationDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(confirmationDrawerFadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 1,
-        duration: 220,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -354,13 +377,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(locationDrawerSlideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 9,
+        tension: 65,
+        friction: 11,
         useNativeDriver: true
       }),
       Animated.timing(locationDrawerFadeAnim, {
         toValue: 1,
-        duration: 250,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start();
@@ -371,12 +395,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.timing(locationDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(locationDrawerFadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -390,13 +416,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(waitingDrawerSlideAnim, {
         toValue: 0,
-        tension: 45,
-        friction: 8,
+        tension: 65,
+        friction: 11,
         useNativeDriver: true
       }),
       Animated.timing(waitingDrawerFadeAnim, {
         toValue: 1,
         duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start();
@@ -407,12 +434,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.timing(waitingDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(waitingDrawerFadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -426,13 +455,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(rideDetailsDrawerSlideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 9,
+        tension: 65,
+        friction: 11,
         useNativeDriver: true
       }),
       Animated.timing(rideDetailsDrawerFadeAnim, {
         toValue: 1,
-        duration: 250,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start();
@@ -443,12 +473,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.timing(rideDetailsDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(rideDetailsDrawerFadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -462,13 +494,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(cancelReasonsDrawerSlideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 9,
+        tension: 65,
+        friction: 11,
         useNativeDriver: true
       }),
       Animated.timing(cancelReasonsDrawerFadeAnim, {
         toValue: 1,
-        duration: 250,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start();
@@ -479,12 +512,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.timing(cancelReasonsDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(cancelReasonsDrawerFadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -498,13 +533,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(cancelConfirmDrawerSlideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 9,
+        tension: 65,
+        friction: 11,
         useNativeDriver: true
       }),
       Animated.timing(cancelConfirmDrawerFadeAnim, {
         toValue: 1,
-        duration: 250,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start();
@@ -515,12 +551,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.timing(cancelConfirmDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(cancelConfirmDrawerFadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -536,13 +574,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(rideBookedDrawerSlideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 9,
+        tension: 65,
+        friction: 11,
         useNativeDriver: true
       }),
       Animated.timing(rideBookedDrawerFadeAnim, {
         toValue: 1,
-        duration: 250,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start();
@@ -553,12 +592,14 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.timing(rideBookedDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 220,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(rideBookedDrawerFadeAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -612,8 +653,97 @@ export default function HomeScreen() {
     // Don't close the drawer - let user select both locations
   };
 
+  // LocationIQ API
+  const LOCATIONIQ_API_KEY = process.env.EXPO_PUBLIC_LOCATIONIQ_API_KEY;
+
+  // Reverse geocode to get location name from coordinates
+  const reverseGeocode = async (lat: number, lon: number) => {
+    try {
+      const response = await fetch(
+        `https://api.locationiq.com/v1/reverse?key=${LOCATIONIQ_API_KEY}&lat=${lat}&lon=${lon}&format=json`
+      );
+      const data = await response.json();
+
+      if (data.error) {
+        console.log('Reverse geocode error:', data.error);
+        return null;
+      }
+
+      // Get a readable location name
+      const address = data.address || {};
+      const name = address.road || address.neighbourhood || address.suburb || address.city || address.state || 'Your Location';
+      const area = address.suburb || address.neighbourhood || address.city || '';
+
+      return area ? `${name}, ${area}` : name;
+    } catch (error) {
+      console.log('Reverse geocode error:', error);
+      return null;
+    }
+  };
+
+  // Update pickup location with actual location name when user location changes
+  useEffect(() => {
+    const updateLocationName = async () => {
+      if (userLocation && !reverseGeocodedRef.current) {
+        reverseGeocodedRef.current = true;
+        const locationName = await reverseGeocode(userLocation.latitude, userLocation.longitude);
+        if (locationName) {
+          setCurrentLocationName(locationName);
+          // Update all tiers with the actual location name (only if pickup is empty)
+          setTierLocations(prev => ({
+            Standard: { ...prev.Standard, pickup: prev.Standard.pickup === '' ? locationName : prev.Standard.pickup },
+            Delux: { ...prev.Delux, pickup: prev.Delux.pickup === '' ? locationName : prev.Delux.pickup },
+            VIP: { ...prev.VIP, pickup: prev.VIP.pickup === '' ? locationName : prev.VIP.pickup },
+          }));
+        }
+      }
+    };
+    updateLocationName();
+  }, [userLocation]);
+
+  const searchLocations = async (query: string) => {
+    if (!query.trim() || query.length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Use LocationIQ Autocomplete API
+      const response = await fetch(
+        `https://api.locationiq.com/v1/autocomplete?key=${LOCATIONIQ_API_KEY}&q=${encodeURIComponent(query)}&limit=8&countrycodes=in&dedupe=1`
+      );
+      const data = await response.json();
+
+      // Handle API errors
+      if (data.error) {
+        console.log('LocationIQ error:', data.error);
+        setSearchResults([]);
+        return;
+      }
+
+      const results = data.map((item: any, index: number) => ({
+        id: item.place_id?.toString() || index.toString(),
+        name: item.display_place || item.display_name?.split(',')[0] || 'Unknown',
+        address: item.display_address || item.display_name || '',
+        distance: '',
+        lat: item.lat,
+        lon: item.lon,
+      }));
+
+      setSearchResults(results);
+    } catch (error) {
+      console.log('Search error:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const handleLocationInputChange = (type: 'pickup' | 'drop', value: string) => {
     if (!selectedTier) return;
+    setLocationSearchQuery(value);
     setTierLocations(prev => ({
       ...prev,
       [selectedTier]: {
@@ -621,10 +751,25 @@ export default function HomeScreen() {
         [type]: value,
       }
     }));
+
+    // Debounced search - 400ms (between 300-500ms for optimal UX)
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      searchLocations(value);
+    }, 400);
   };
+
+  // Combined places: API results + fallback to NEARBY_PLACES
+  const displayPlaces = locationSearchQuery.trim().length >= 2
+    ? searchResults
+    : NEARBY_PLACES;
 
   const handleDoneSelectingLocations = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLocationSearchQuery('');
+    setSearchResults([]);
     closeLocationDrawer();
   };
 
@@ -1010,7 +1155,7 @@ export default function HomeScreen() {
         <View style={styles.floatingBookingCard}>
           <View style={styles.bookingCardHeader}>
             <Text style={[styles.bookingSectionTitle, { color: colors.text }]}>Choose Your Ride</Text>
-            
+
           </View>
 
           {/* Standard */}
@@ -1119,7 +1264,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        
+
       </View>
 
       {/* Custom Bottom Tab Bar Overlay */}
@@ -1300,7 +1445,9 @@ export default function HomeScreen() {
                         <View style={[styles.simpleLocationDot, { backgroundColor: colors.accent }]} />
                         <View style={styles.simpleLocationTextWrap}>
                           <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>Pickup location</Text>
-                          <Text style={[styles.simpleLocationValue, { color: colors.text }]}>{currentPickup}</Text>
+                          <Text style={[styles.simpleLocationValue, { color: currentPickup ? colors.text : colors.textSub }]}>
+                            {currentPickup || 'Enter pickup location'}
+                          </Text>
                         </View>
                       </View>
                       <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
@@ -1344,13 +1491,14 @@ export default function HomeScreen() {
                         });
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         closeBookingDrawer();
-                        setTimeout(() => openConfirmationDrawer(), 300);
+                        // Go directly to Ride Requested (Waiting) drawer
+                        setTimeout(() => openWaitingDrawer(), 300);
                       }
                     }}
                     disabled={!currentPickup || !currentDrop}
                     activeOpacity={0.85}
                   >
-                    <Text style={[styles.continueButtonText, { color: '#000' }]}>Continue</Text>
+                    <Text style={[styles.continueButtonText, { color: '#000' }]}>Request Ride</Text>
                     <Ionicons name="arrow-forward" size={20} color="#000" />
                   </TouchableOpacity>
                 </View>
@@ -1360,176 +1508,188 @@ export default function HomeScreen() {
         </Animated.View>
       </Modal>
 
-      {/* Confirmation Drawer - Confirm Pickup Spot */}
-      <Modal visible={isConfirmationDrawerOpen} animationType="none" transparent onRequestClose={closeConfirmationDrawer}>
-        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: confirmationDrawerFadeAnim }]}>
-          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeConfirmationDrawer} />
-          <Animated.View style={[styles.bookingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: confirmationDrawerSlideAnim }] }]}>
-            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
-            <View style={styles.drawerInnerContainer}>
-              {/* Heading */}
-              <Text style={[styles.confirmationTitle, { color: colors.text }]}>Confirm the pickup spot</Text>
-
-              {/* Locations Display */}
-              <View style={[styles.confirmationLocationsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                {/* Pickup Location */}
-                <View style={styles.confirmationLocationRow}>
-                  <View style={[styles.simpleLocationDot, { backgroundColor: colors.accent }]} />
-                  <View style={styles.confirmationLocationTextWrap}>
-                    <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>PICKUP</Text>
-                    <Text style={[styles.confirmationLocationValue, { color: colors.text }]}>{bookedRide?.pickup || currentPickup}</Text>
-                  </View>
-                </View>
-
-                {/* Visual Route Line */}
-                <View style={styles.confirmationRouteLine}>
-                  <View style={[styles.simpleRouteLinePath, { backgroundColor: colors.border }]} />
-                </View>
-
-                {/* Drop Location */}
-                <View style={styles.confirmationLocationRow}>
-                  <View style={[styles.simpleLocationSquare, { borderColor: '#E53935' }]} />
-                  <View style={styles.confirmationLocationTextWrap}>
-                    <Text style={[styles.simpleLocationLabel, { color: colors.textSub }]}>DROP-OFF</Text>
-                    <Text style={[styles.confirmationLocationValue, { color: colors.text }]}>{bookedRide?.drop || currentDrop}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Confirm Pickup Button */}
-              <TouchableOpacity
-                style={[styles.confirmPickupButton, { backgroundColor: colors.accent }]}
-                onPress={() => {
-                  closeConfirmationDrawer();
-                  setTimeout(() => openWaitingDrawer(), 300);
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.confirmPickupButtonText, { color: '#000' }]}>Confirm Pickup</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </Animated.View>
-      </Modal>
-
-      {/* Location Selection Drawer */}
-      <Modal visible={isLocationDrawerOpen} animationType="none" transparent onRequestClose={handleDoneSelectingLocations}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: locationDrawerFadeAnim }]}>
-            <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={handleDoneSelectingLocations} />
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              style={{ width: '100%' }}
-            >
-              <Animated.View style={[styles.locationDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: locationDrawerSlideAnim }] }]}>
-                <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
-
-                {/* Header */}
-                <View style={styles.locationDrawerHeader}>
+      {/* Location Selection Drawer - Full Screen */}
+      <Modal visible={isLocationDrawerOpen} animationType="slide" onRequestClose={handleDoneSelectingLocations}>
+        <View style={[styles.locationFullScreen, { backgroundColor: colors.modalBg }]}>
+          {/* Header */}
+          <SafeAreaContextView edges={['top']} style={{ backgroundColor: colors.modalBg }}>
+            <View style={[styles.locationDrawerHeader, { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
               <TouchableOpacity onPress={handleDoneSelectingLocations} style={[styles.locationBackButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Ionicons name="arrow-back" size={20} color={colors.text} />
               </TouchableOpacity>
               <Text style={[styles.locationDrawerTitle, { color: colors.text }]}>
                 Select Locations
               </Text>
-              <TouchableOpacity onPress={handleDoneSelectingLocations} style={styles.doneButton}>
-                <Text style={[styles.doneButtonText, { color: colors.accent }]}>Done</Text>
-              </TouchableOpacity>
+              <View style={{ width: 40 }} />
             </View>
+          </SafeAreaContextView>
 
-            {/* Location Input Card */}
-            <View style={[styles.locationInputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              {/* Pickup Input */}
-              <TouchableOpacity
-                style={[styles.locationInputRow, locationSelectionType === 'pickup' && { backgroundColor: colors.accentDim, borderRadius: 12, marginHorizontal: -8, paddingHorizontal: 8 }]}
-                onPress={() => setLocationSelectionType('pickup')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.locationDotWrap}>
-                  <View style={[styles.locationDotOuter, { borderColor: colors.accent }]}>
-                    <View style={[styles.locationDotInner, { backgroundColor: colors.accent }]} />
-                  </View>
+          {/* Location Input Card */}
+          <View style={[styles.locationInputCard, { backgroundColor: colors.surface, borderColor: colors.border, marginHorizontal: 16, marginTop: 16 }]}>
+            {/* Pickup Input */}
+            <TouchableOpacity
+              style={[styles.locationInputRow, locationSelectionType === 'pickup' && { backgroundColor: colors.accentDim, borderRadius: 12, marginHorizontal: -8, paddingHorizontal: 8 }]}
+              onPress={() => setLocationSelectionType('pickup')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.locationDotWrap}>
+                <View style={[styles.locationDotOuter, { borderColor: colors.accent }]}>
+                  <View style={[styles.locationDotInner, { backgroundColor: colors.accent }]} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.locationInputLabel, { color: colors.textSub }]}>Pickup</Text>
-                  <TextInput
-                    style={[styles.locationTextInput, { color: colors.text }]}
-                    value={currentPickup}
-                    onChangeText={(text) => handleLocationInputChange('pickup', text)}
-                    placeholder="Enter pickup location"
-                    placeholderTextColor={colors.textSub}
-                    onFocus={() => setLocationSelectionType('pickup')}
-                  />
-                </View>
-                {locationSelectionType === 'pickup' && (
-                  <View style={[styles.activeIndicator, { backgroundColor: colors.accent }]} />
-                )}
-              </TouchableOpacity>
-
-              {/* Divider */}
-              <View style={styles.locationInputDivider}>
-                <View style={[styles.locationDividerLine, { backgroundColor: colors.border }]} />
               </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.locationInputLabel, { color: colors.textSub }]}>Pickup</Text>
+                <TextInput
+                  style={[styles.locationTextInput, { color: colors.text }]}
+                  value={currentPickup}
+                  onChangeText={(text) => handleLocationInputChange('pickup', text)}
+                  placeholder="Enter pickup location"
+                  placeholderTextColor={colors.textSub}
+                  onFocus={() => setLocationSelectionType('pickup')}
+                />
+              </View>
+              {currentPickup ? (
+                <TouchableOpacity
+                  style={styles.clearInputBtn}
+                  onPress={() => {
+                    if (selectedTier) {
+                      setTierLocations(prev => ({
+                        ...prev,
+                        [selectedTier]: { ...prev[selectedTier], pickup: '' }
+                      }));
+                      setLocationSearchQuery('');
+                      setSearchResults([]);
+                    }
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close-circle" size={20} color={colors.textSub} />
+                </TouchableOpacity>
+              ) : locationSelectionType === 'pickup' ? (
+                <View style={[styles.activeIndicator, { backgroundColor: colors.accent }]} />
+              ) : null}
+            </TouchableOpacity>
 
-              {/* Drop Input */}
-              <TouchableOpacity
-                style={[styles.locationInputRow, locationSelectionType === 'drop' && { backgroundColor: colors.accentDim, borderRadius: 12, marginHorizontal: -8, paddingHorizontal: 8 }]}
-                onPress={() => setLocationSelectionType('drop')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.locationDotWrap}>
-                  <View style={[styles.locationSquare, { borderColor: '#E53935' }]} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.locationInputLabel, { color: colors.textSub }]}>Drop off</Text>
-                  <TextInput
-                    style={[styles.locationTextInput, { color: currentDrop ? colors.text : colors.textSub }]}
-                    value={currentDrop}
-                    onChangeText={(text) => handleLocationInputChange('drop', text)}
-                    placeholder="Where to?"
-                    placeholderTextColor={colors.textSub}
-                    onFocus={() => setLocationSelectionType('drop')}
-                  />
-                </View>
-                {locationSelectionType === 'drop' && (
-                  <View style={[styles.activeIndicator, { backgroundColor: '#E53935' }]} />
-                )}
-              </TouchableOpacity>
+            {/* Divider */}
+            <View style={styles.locationInputDivider}>
+              <View style={[styles.locationDividerLine, { backgroundColor: colors.border }]} />
             </View>
 
-            {/* Nearby Places List */}
-            <FlatList
-              data={NEARBY_PLACES}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.nearbyPlacesList}
-              renderItem={({ item }) => (
+            {/* Drop Input */}
+            <TouchableOpacity
+              style={[styles.locationInputRow, locationSelectionType === 'drop' && { backgroundColor: colors.accentDim, borderRadius: 12, marginHorizontal: -8, paddingHorizontal: 8 }]}
+              onPress={() => setLocationSelectionType('drop')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.locationDotWrap}>
+                <View style={[styles.locationSquare, { borderColor: '#E53935' }]} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.locationInputLabel, { color: colors.textSub }]}>Drop off</Text>
+                <TextInput
+                  style={[styles.locationTextInput, { color: currentDrop ? colors.text : colors.textSub }]}
+                  value={currentDrop}
+                  onChangeText={(text) => handleLocationInputChange('drop', text)}
+                  placeholder="Where to?"
+                  placeholderTextColor={colors.textSub}
+                  onFocus={() => setLocationSelectionType('drop')}
+                />
+              </View>
+              {currentDrop ? (
                 <TouchableOpacity
-                  style={[styles.nearbyPlaceItem, { borderColor: colors.border }]}
-                  onPress={() => handleSelectPlace(item)}
-                  activeOpacity={0.7}
+                  style={styles.clearInputBtn}
+                  onPress={() => {
+                    if (selectedTier) {
+                      setTierLocations(prev => ({
+                        ...prev,
+                        [selectedTier]: { ...prev[selectedTier], drop: '' }
+                      }));
+                      setLocationSearchQuery('');
+                      setSearchResults([]);
+                    }
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <View style={[styles.nearbyPlaceIcon, { backgroundColor: colors.surface }]}>
-                    <Ionicons name="location-outline" size={20} color={colors.textSub} />
-                  </View>
-                  <View style={styles.nearbyPlaceInfo}>
-                    <Text style={[styles.nearbyPlaceName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-                    <Text style={[styles.nearbyPlaceAddress, { color: colors.textSub }]} numberOfLines={1}>{item.address}</Text>
-                  </View>
-                  <Text style={[styles.nearbyPlaceDistance, { color: colors.textSub }]}>{item.distance}</Text>
+                  <Ionicons name="close-circle" size={20} color={colors.textSub} />
                 </TouchableOpacity>
-              )}
-              />
-            </Animated.View>
-          </KeyboardAvoidingView>
-        </Animated.View>
-      </TouchableWithoutFeedback>
+              ) : locationSelectionType === 'drop' ? (
+                <View style={[styles.activeIndicator, { backgroundColor: '#E53935' }]} />
+              ) : null}
+            </TouchableOpacity>
+          </View>
+
+          {/* Suggestions/Nearby Places List */}
+          <FlatList
+            data={displayPlaces}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={{ flex: 1 }}
+            contentContainerStyle={[styles.nearbyPlacesList, { paddingHorizontal: 16 }]}
+            ListHeaderComponent={
+              <View style={styles.suggestionsHeaderWrap}>
+                <Text style={[styles.suggestionsHeader, { color: colors.textSub }]}>
+                  {isSearching ? 'Searching...' : (locationSearchQuery.trim().length >= 2 ? 'Search Results' : 'Nearby Places')}
+                </Text>
+                {isSearching && <ActivityIndicator size="small" color={colors.accent} />}
+              </View>
+            }
+            ListEmptyComponent={
+              <View style={styles.noResultsWrap}>
+                {isSearching ? (
+                  <ActivityIndicator size="large" color={colors.accent} />
+                ) : (
+                  <>
+                    <Ionicons name="search-outline" size={32} color={colors.textSub} />
+                    <Text style={[styles.noResultsText, { color: colors.textSub }]}>
+                      {locationSearchQuery.trim().length >= 2 ? 'No places found' : 'Start typing to search'}
+                    </Text>
+                  </>
+                )}
+              </View>
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.nearbyPlaceItem, { borderColor: colors.border }]}
+                onPress={() => {
+                  handleSelectPlace(item);
+                  setLocationSearchQuery('');
+                  setSearchResults([]);
+                  Keyboard.dismiss();
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.nearbyPlaceIcon, { backgroundColor: colors.surface }]}>
+                  <Ionicons name="location-outline" size={20} color={colors.accent} />
+                </View>
+                <View style={styles.nearbyPlaceInfo}>
+                  <Text style={[styles.nearbyPlaceName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                  <Text style={[styles.nearbyPlaceAddress, { color: colors.textSub }]} numberOfLines={2}>{item.address}</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+
+          {/* Fixed Confirm Button at Bottom */}
+          <SafeAreaContextView edges={['bottom']} style={{ backgroundColor: colors.modalBg }}>
+            <View style={[styles.locationConfirmWrap, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+              <TouchableOpacity
+                style={[styles.locationConfirmBtn, { backgroundColor: colors.accent, opacity: (currentPickup && currentDrop) ? 1 : 0.5 }]}
+                onPress={handleDoneSelectingLocations}
+                disabled={!currentPickup || !currentDrop}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.locationConfirmText, { color: '#000' }]}>Confirm Locations</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaContextView>
+        </View>
       </Modal>
 
       {/* Waiting/Ride Requested Drawer */}
       <Modal visible={isWaitingDrawerOpen} animationType="none" transparent onRequestClose={closeWaitingDrawer}>
         <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: waitingDrawerFadeAnim }]}>
-          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => {}} />
+          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => { }} />
           <Animated.View style={[styles.waitingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: waitingDrawerSlideAnim }] }]}>
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
@@ -1946,7 +2106,7 @@ export default function HomeScreen() {
       {/* Ride Booked Drawer */}
       <Modal visible={isRideBookedDrawerOpen} animationType="none" transparent onRequestClose={closeRideBookedDrawer}>
         <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: rideBookedDrawerFadeAnim }]}>
-          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => {}} />
+          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => { }} />
           <Animated.View style={[styles.rideBookedDrawer, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: rideBookedDrawerSlideAnim }] }]}>
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
@@ -2230,7 +2390,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     paddingTop: 22,
   },
-  bookingCardHeader: { 
+  bookingCardHeader: {
     marginBottom: 12,
     paddingHorizontal: 16,
   },
@@ -2402,7 +2562,7 @@ const styles = StyleSheet.create({
   drawerBackdrop: { ...StyleSheet.absoluteFillObject },
   drawerContent: {
     borderTopLeftRadius: 32, borderTopRightRadius: 32,
-    paddingHorizontal: 24, paddingBottom: 50, paddingTop: 10,
+    paddingHorizontal: 24, paddingBottom: 20, paddingTop: 10,
     shadowColor: '#000', shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 20,
   },
@@ -2468,7 +2628,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 24,
-    paddingBottom: 50,
+    paddingBottom: 20,
     paddingTop: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -6 },
@@ -2693,12 +2853,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Location Selection Drawer
+  // Location Selection Drawer - Full Screen
+  locationFullScreen: {
+    flex: 1,
+  },
   locationDrawerContent: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 20,
     paddingTop: 10,
     maxHeight: SCREEN_HEIGHT * 0.85,
     shadowColor: '#000',
@@ -2711,8 +2874,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingHorizontal: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   locationBackButton: {
     width: 40,
@@ -2771,6 +2934,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     paddingVertical: 4,
   },
+  clearInputBtn: {
+    padding: 4,
+    marginLeft: 8,
+  },
   locationInputDivider: {
     paddingLeft: 8,
     paddingVertical: 8,
@@ -2782,7 +2949,46 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   nearbyPlacesList: {
-    paddingBottom: 20,
+    paddingBottom: 40,
+  },
+  suggestionsHeader: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  suggestionsHeaderWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  locationConfirmWrap: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  locationConfirmBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: 14,
+  },
+  locationConfirmText: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  noResultsWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  noResultsText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   nearbyPlaceItem: {
     flexDirection: 'row',
@@ -2834,7 +3040,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 20,
-    paddingBottom: 28,
+    paddingBottom: 20,
     paddingTop: 8,
     alignItems: 'center',
     shadowColor: '#000',
@@ -3533,7 +3739,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: 20,
-    paddingBottom: 36,
+    paddingBottom: 20,
     paddingTop: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
