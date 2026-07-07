@@ -168,6 +168,8 @@ export default function HomeScreen() {
   const [isCancelReasonsDrawerOpen, setIsCancelReasonsDrawerOpen] = useState(false);
   const [isCancelConfirmDrawerOpen, setIsCancelConfirmDrawerOpen] = useState(false);
   const [selectedCancelReason, setSelectedCancelReason] = useState<string | null>(null);
+  const [showCustomReasonInput, setShowCustomReasonInput] = useState(false);
+  const [customReason, setCustomReason] = useState('');
   const [shareTripEnabled, setShareTripEnabled] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'cash' | 'card'>('cash');
   const [isRideBookedDrawerOpen, setIsRideBookedDrawerOpen] = useState(false);
@@ -536,6 +538,8 @@ export default function HomeScreen() {
       }),
     ]).start(() => {
       setIsCancelReasonsDrawerOpen(false);
+      setShowCustomReasonInput(false);
+      setCustomReason('');
     });
   };
 
@@ -2200,7 +2204,7 @@ export default function HomeScreen() {
 
               <TouchableOpacity
                 style={[styles.cancelReasonItem, { borderColor: colors.border }]}
-                onPress={() => handleCancelReasonSelect('Other reason')}
+                onPress={() => setShowCustomReasonInput(true)}
                 activeOpacity={0.7}
               >
                 <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
@@ -2210,6 +2214,45 @@ export default function HomeScreen() {
                 <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
               </TouchableOpacity>
             </View>
+
+            {/* Custom Reason Input */}
+            {showCustomReasonInput && (
+              <View style={styles.customReasonContainer}>
+                <Text style={[styles.customReasonLabel, { color: colors.text }]}>Please specify your reason:</Text>
+                <TextInput
+                  style={[styles.customReasonInput, {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.text
+                  }]}
+                  placeholder="Write your reason here..."
+                  placeholderTextColor={colors.textSub}
+                  value={customReason}
+                  onChangeText={setCustomReason}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={[styles.submitReasonButton, {
+                    backgroundColor: colors.accent,
+                    opacity: customReason.trim().length > 0 ? 1 : 0.5
+                  }]}
+                  onPress={() => {
+                    if (customReason.trim().length > 0) {
+                      handleCancelReasonSelect(customReason);
+                      setShowCustomReasonInput(false);
+                      setCustomReason('');
+                    }
+                  }}
+                  disabled={customReason.trim().length === 0}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.submitReasonText, { color: '#000' }]}>Submit</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Keep My Ride Button */}
             <TouchableOpacity
@@ -3506,6 +3549,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     marginTop: 4,
+    alignSelf: 'center',
   },
   cancelRideText: {
     fontSize: 15,
@@ -3759,6 +3803,34 @@ const styles = StyleSheet.create({
   keepRideText: {
     fontSize: 16,
     fontWeight: '800',
+  },
+  customReasonContainer: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  customReasonLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  customReasonInput: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    minHeight: 90,
+    marginBottom: 12,
+  },
+  submitReasonButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitReasonText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 
   // Cancel Confirmation Drawer
