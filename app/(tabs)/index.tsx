@@ -1249,21 +1249,6 @@ export default function HomeScreen() {
         )}
       </MapView>
 
-      {/* Route Info Card - shows distance and duration */}
-      {routeInfo && (
-        <View style={[styles.routeInfoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.routeInfoRow}>
-            <Ionicons name="navigate" size={18} color={colors.accent} />
-            <Text style={[styles.routeInfoText, { color: colors.text }]}>{routeInfo.distance}</Text>
-          </View>
-          <View style={[styles.routeInfoDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.routeInfoRow}>
-            <Ionicons name="time" size={18} color={colors.accent} />
-            <Text style={[styles.routeInfoText, { color: colors.text }]}>{routeInfo.duration}</Text>
-          </View>
-        </View>
-      )}
-
       {/* Header overlay */}
       <SafeAreaContextView
         edges={['top']}
@@ -1291,6 +1276,17 @@ export default function HomeScreen() {
             <Ionicons name="notifications-outline" size={26} color={colors.text} />
           </TouchableOpacity>
         </View>
+
+        {/* Route Info - Below header, smaller size */}
+        {routeInfo && (
+          <View style={[styles.routeInfoCardSmall, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="navigate" size={14} color={colors.accent} />
+            <Text style={[styles.routeInfoTextSmall, { color: colors.text }]}>{routeInfo.distance}</Text>
+            <View style={[styles.routeInfoDividerSmall, { backgroundColor: colors.border }]} />
+            <Ionicons name="time" size={14} color={colors.accent} />
+            <Text style={[styles.routeInfoTextSmall, { color: colors.text }]}>{routeInfo.duration}</Text>
+          </View>
+        )}
       </SafeAreaContextView>
 
       {/* Recenter FAB - positioned above the booking card */}
@@ -1479,16 +1475,25 @@ export default function HomeScreen() {
 
       {/* Booking Drawer - Floating Panel (no overlay, map stays interactive) */}
       {isDrawerOpen && (
-        <Animated.View
-          style={[
-            styles.floatingDrawerContent,
-            {
-              backgroundColor: colors.modalBg,
-              paddingBottom: Math.max(insets.bottom, 20),
-              transform: [{ translateY: drawerSlideAnim }]
-            }
-          ]}
-        >
+        <>
+          {/* Invisible backdrop - closes drawer if locations not selected */}
+          {(!currentPickup || !currentDrop) && (
+            <TouchableOpacity
+              style={styles.invisibleBackdrop}
+              activeOpacity={1}
+              onPress={closeDrawer}
+            />
+          )}
+          <Animated.View
+            style={[
+              styles.floatingDrawerContent,
+              {
+                backgroundColor: colors.modalBg,
+                paddingBottom: Math.max(insets.bottom, 20),
+                transform: [{ translateY: drawerSlideAnim }]
+              }
+            ]}
+          >
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
             {selectedTier && (() => {
               const details = tierDetails[selectedTier];
@@ -1536,6 +1541,7 @@ export default function HomeScreen() {
               );
             })()}
           </Animated.View>
+        </>
       )}
 
       {/* Booking Drawer - Pickup/Drop Selection (Floating Panel) */}
@@ -1854,12 +1860,19 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* Waiting/Ride Requested Drawer */}
-      <Modal visible={isWaitingDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeWaitingDrawer}>
-        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: waitingDrawerFadeAnim }]}>
-          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => { }} />
-          <Animated.View style={[styles.waitingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: waitingDrawerSlideAnim }] }]}>
-            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+      {/* Waiting/Ride Requested Drawer - Floating Panel (map interactive) */}
+      {isWaitingDrawerOpen && (
+        <Animated.View
+          style={[
+            styles.floatingWaitingDrawer,
+            {
+              backgroundColor: colors.modalBg,
+              paddingBottom: Math.max(insets.bottom, 20),
+              transform: [{ translateY: waitingDrawerSlideAnim }]
+            }
+          ]}
+        >
+          <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
             {/* Animated Loading Icon */}
             <View style={styles.waitingIconContainer}>
@@ -1964,9 +1977,8 @@ export default function HomeScreen() {
             >
               <Text style={[styles.cancelRideText, { color: '#E53935' }]}>Cancel Ride</Text>
             </TouchableOpacity>
-          </Animated.View>
         </Animated.View>
-      </Modal>
+      )}
 
       {/* Ride Details Drawer */}
       <Modal visible={isRideDetailsDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeRideDetailsDrawer}>
@@ -2271,12 +2283,19 @@ export default function HomeScreen() {
         </Animated.View>
       </Modal>
 
-      {/* Ride Booked Drawer */}
-      <Modal visible={isRideBookedDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeRideBookedDrawer}>
-        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: rideBookedDrawerFadeAnim }]}>
-          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => { }} />
-          <Animated.View style={[styles.rideBookedDrawer, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: rideBookedDrawerSlideAnim }] }]}>
-            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+      {/* Ride Booked Drawer - Floating Panel (map interactive) */}
+      {isRideBookedDrawerOpen && (
+        <Animated.View
+          style={[
+            styles.floatingRideBookedDrawer,
+            {
+              backgroundColor: colors.modalBg,
+              paddingBottom: Math.max(insets.bottom, 20),
+              transform: [{ translateY: rideBookedDrawerSlideAnim }]
+            }
+          ]}
+        >
+          <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
             {/* Header with ETA and PIN */}
             <View style={styles.rideBookedHeader}>
@@ -2395,9 +2414,8 @@ export default function HomeScreen() {
                 <Ionicons name="close" size={22} color="#E53935" />
               </TouchableOpacity>
             </View>
-          </Animated.View>
         </Animated.View>
-      </Modal>
+      )}
     </View>
   );
 }
@@ -2597,37 +2615,32 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
 
-  // ── Route Info Card ──
-  routeInfoCard: {
-    position: 'absolute',
-    top: 100,
-    left: 16,
+  // ── Route Info Card (Small - below header) ──
+  routeInfoCardSmall: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
+    alignSelf: 'flex-start',
+    marginLeft: 16,
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
     borderWidth: 1,
+    gap: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-    zIndex: 10,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  routeInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  routeInfoTextSmall: {
+    fontSize: 11,
+    fontWeight: '600',
   },
-  routeInfoText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  routeInfoDivider: {
+  routeInfoDividerSmall: {
     width: 1,
-    height: 20,
-    marginHorizontal: 14,
+    height: 12,
+    marginHorizontal: 6,
   },
 
   // ── Bottom half ──
@@ -2859,6 +2872,52 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 32,
     elevation: 40,
+  },
+  floatingWaitingDrawer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: SCREEN_HEIGHT * 0.72, // Taller to show cancel button
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    paddingTop: 10,
+    zIndex: 1000, // Higher than tab bar (999) to receive touches
+    // Premium shadow for floating effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    elevation: 40,
+  },
+  floatingRideBookedDrawer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: DRAWER_HEIGHT_LARGE,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    paddingTop: 12,
+    zIndex: 1000, // Higher than tab bar (999) to receive touches
+    // Premium shadow for floating effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    elevation: 40,
+  },
+  invisibleBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
   },
 
   // ── Booking Drawer (legacy - kept for other modals) ──
@@ -3373,7 +3432,8 @@ const styles = StyleSheet.create({
     height: 100,
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 14,
+    alignSelf: 'center',
+    marginVertical: 10,
   },
   waitingRipple: {
     position: 'absolute',
