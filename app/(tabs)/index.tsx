@@ -13,15 +13,11 @@ import {
   Easing,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View
 } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
@@ -32,6 +28,11 @@ import { ROUTES } from '@/constants/routes';
 import { useAppTheme } from '@/context/ThemeContext';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Drawer height configurations - 55% of screen for main drawers
+const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.55;
+const DRAWER_HEIGHT_LARGE = SCREEN_HEIGHT * 0.65;
+const DRAWER_HEIGHT_SMALL = SCREEN_HEIGHT * 0.45;
 
 const lightMapStyle = [
   { elementType: 'geometry', stylers: [{ color: '#F5F5F5' }] },
@@ -231,19 +232,19 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(drawerSlideAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 12,
         useNativeDriver: true
       }),
       Animated.timing(drawerFadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 350,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 0,
-        duration: 250,
+        duration: 300,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -257,19 +258,19 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(bookingDrawerSlideAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 12,
         useNativeDriver: true
       }),
       Animated.timing(bookingDrawerFadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 350,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 0,
-        duration: 250,
+        duration: 300,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -279,21 +280,21 @@ export default function HomeScreen() {
   const closeDrawer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(drawerSlideAnim, {
+      Animated.spring(drawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        tension: 55,
+        friction: 14,
         useNativeDriver: true
       }),
       Animated.timing(drawerFadeAnim, {
         toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 1,
-        duration: 280,
+        duration: 320,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -306,21 +307,21 @@ export default function HomeScreen() {
   const closeBookingDrawer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(bookingDrawerSlideAnim, {
+      Animated.spring(bookingDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        tension: 55,
+        friction: 14,
         useNativeDriver: true
       }),
       Animated.timing(bookingDrawerFadeAnim, {
         toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 1,
-        duration: 280,
+        duration: 320,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -336,19 +337,19 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(confirmationDrawerSlideAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 12,
         useNativeDriver: true
       }),
       Animated.timing(confirmationDrawerFadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 350,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 0,
-        duration: 250,
+        duration: 300,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -358,21 +359,21 @@ export default function HomeScreen() {
   const closeConfirmationDrawer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(confirmationDrawerSlideAnim, {
+      Animated.spring(confirmationDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        tension: 55,
+        friction: 14,
         useNativeDriver: true
       }),
       Animated.timing(confirmationDrawerFadeAnim, {
         toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
       Animated.timing(tabBarAnim, {
         toValue: 1,
-        duration: 280,
+        duration: 320,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -388,13 +389,13 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(locationDrawerSlideAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 12,
         useNativeDriver: true
       }),
       Animated.timing(locationDrawerFadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 350,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -404,16 +405,16 @@ export default function HomeScreen() {
   const closeLocationDrawer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(locationDrawerSlideAnim, {
+      Animated.spring(locationDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        tension: 55,
+        friction: 14,
         useNativeDriver: true
       }),
       Animated.timing(locationDrawerFadeAnim, {
         toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -427,13 +428,13 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(waitingDrawerSlideAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 12,
         useNativeDriver: true
       }),
       Animated.timing(waitingDrawerFadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 350,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -443,16 +444,16 @@ export default function HomeScreen() {
   const closeWaitingDrawer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(waitingDrawerSlideAnim, {
+      Animated.spring(waitingDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        tension: 55,
+        friction: 14,
         useNativeDriver: true
       }),
       Animated.timing(waitingDrawerFadeAnim, {
         toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -466,13 +467,13 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(rideDetailsDrawerSlideAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 12,
         useNativeDriver: true
       }),
       Animated.timing(rideDetailsDrawerFadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 350,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -482,16 +483,16 @@ export default function HomeScreen() {
   const closeRideDetailsDrawer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(rideDetailsDrawerSlideAnim, {
+      Animated.spring(rideDetailsDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        tension: 55,
+        friction: 14,
         useNativeDriver: true
       }),
       Animated.timing(rideDetailsDrawerFadeAnim, {
         toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -505,13 +506,13 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(cancelReasonsDrawerSlideAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 12,
         useNativeDriver: true
       }),
       Animated.timing(cancelReasonsDrawerFadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 350,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -521,16 +522,16 @@ export default function HomeScreen() {
   const closeCancelReasonsDrawer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(cancelReasonsDrawerSlideAnim, {
+      Animated.spring(cancelReasonsDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        tension: 55,
+        friction: 14,
         useNativeDriver: true
       }),
       Animated.timing(cancelReasonsDrawerFadeAnim, {
         toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -544,13 +545,13 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(cancelConfirmDrawerSlideAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 12,
         useNativeDriver: true
       }),
       Animated.timing(cancelConfirmDrawerFadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 350,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -560,16 +561,16 @@ export default function HomeScreen() {
   const closeCancelConfirmDrawer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(cancelConfirmDrawerSlideAnim, {
+      Animated.spring(cancelConfirmDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        tension: 55,
+        friction: 14,
         useNativeDriver: true
       }),
       Animated.timing(cancelConfirmDrawerFadeAnim, {
         toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -585,13 +586,13 @@ export default function HomeScreen() {
     Animated.parallel([
       Animated.spring(rideBookedDrawerSlideAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        tension: 50,
+        friction: 12,
         useNativeDriver: true
       }),
       Animated.timing(rideBookedDrawerFadeAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 350,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
@@ -601,16 +602,16 @@ export default function HomeScreen() {
   const closeRideBookedDrawer = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.parallel([
-      Animated.timing(rideBookedDrawerSlideAnim, {
+      Animated.spring(rideBookedDrawerSlideAnim, {
         toValue: SCREEN_HEIGHT,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
+        tension: 55,
+        friction: 14,
         useNativeDriver: true
       }),
       Animated.timing(rideBookedDrawerFadeAnim, {
         toValue: 0,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -1476,11 +1477,18 @@ export default function HomeScreen() {
         </Animated.View>
       </Modal>
 
-      {/* Booking Drawer */}
-      <Modal visible={isDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeDrawer}>
-        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: drawerFadeAnim }]}>
-          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeDrawer} />
-          <Animated.View style={[styles.drawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: drawerSlideAnim }] }]}>
+      {/* Booking Drawer - Floating Panel (no overlay, map stays interactive) */}
+      {isDrawerOpen && (
+        <Animated.View
+          style={[
+            styles.floatingDrawerContent,
+            {
+              backgroundColor: colors.modalBg,
+              paddingBottom: Math.max(insets.bottom, 20),
+              transform: [{ translateY: drawerSlideAnim }]
+            }
+          ]}
+        >
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
             {selectedTier && (() => {
               const details = tierDetails[selectedTier];
@@ -1528,14 +1536,20 @@ export default function HomeScreen() {
               );
             })()}
           </Animated.View>
-        </Animated.View>
-      </Modal>
+      )}
 
-      {/* Booking Drawer - Pickup/Drop Selection */}
-      <Modal visible={isBookingDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeBookingDrawer}>
-        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: bookingDrawerFadeAnim }]}>
-          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeBookingDrawer} />
-          <Animated.View style={[styles.bookingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: bookingDrawerSlideAnim }] }]}>
+      {/* Booking Drawer - Pickup/Drop Selection (Floating Panel) */}
+      {isBookingDrawerOpen && (
+        <Animated.View
+          style={[
+            styles.floatingBookingDrawerContent,
+            {
+              backgroundColor: colors.modalBg,
+              paddingBottom: Math.max(insets.bottom, 20),
+              transform: [{ translateY: bookingDrawerSlideAnim }]
+            }
+          ]}
+        >
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
             {selectedTier && (() => {
               const details = tierDetails[selectedTier];
@@ -1654,8 +1668,7 @@ export default function HomeScreen() {
               );
             })()}
           </Animated.View>
-        </Animated.View>
-      </Modal>
+      )}
 
       {/* Location Selection Drawer - Full Screen */}
       <Modal visible={isLocationDrawerOpen} animationType="slide" onRequestClose={handleDoneSelectingLocations}>
@@ -2808,18 +2821,73 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // ── Booking Drawer ──
-  drawerOverlay: { flex: 1, justifyContent: 'flex-end' },
-  drawerBackdrop: { ...StyleSheet.absoluteFillObject },
+  // ── Floating Drawer (Uber/Rapido style - no overlay, map interactive) ──
+  floatingDrawerContent: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: DRAWER_HEIGHT,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    paddingTop: 12,
+    zIndex: 1000, // Higher than tab bar (999) to receive touches
+    // Premium shadow for floating effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    elevation: 40,
+  },
+  floatingBookingDrawerContent: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: DRAWER_HEIGHT_LARGE,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    paddingTop: 12,
+    zIndex: 1000, // Higher than tab bar (999) to receive touches
+    // Premium shadow for floating effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 32,
+    elevation: 40,
+  },
+
+  // ── Booking Drawer (legacy - kept for other modals) ──
+  drawerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  drawerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
   drawerContent: {
-    borderTopLeftRadius: 32, borderTopRightRadius: 32,
-    paddingHorizontal: 24, paddingBottom: 20, paddingTop: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 20,
+    maxHeight: DRAWER_HEIGHT,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    paddingTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 24,
   },
   drawerHandle: {
-    width: 44, height: 5,
-    borderRadius: 2.5, alignSelf: 'center', marginBottom: 22,
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 18,
   },
   drawerInnerContainer: { width: '100%' },
   drawerHeader: {

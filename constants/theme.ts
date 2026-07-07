@@ -42,7 +42,8 @@ export const darkTheme = {
   iconMuted: '#808080',
 
   // Overlay
-  overlay: 'rgba(0,0,0,0.85)',
+  overlay: 'rgba(0,0,0,0.40)',
+  overlayDark: 'rgba(0,0,0,0.60)',
   modalBg: '#1E1E1E',
 
   // Map Location Marker & Accuracy Circle (refined for a premium pink aura in dark mode)
@@ -85,7 +86,8 @@ export const lightTheme = {
   iconMuted: '#BDC1C6',
 
   // Overlay
-  overlay: 'rgba(0,0,0,0.45)',
+  overlay: 'rgba(0,0,0,0.35)',
+  overlayDark: 'rgba(0,0,0,0.55)',
   modalBg: '#FFFFFF',
 
   // Map Location Marker & Accuracy Circle (darker pink for enhanced visibility on light map)
