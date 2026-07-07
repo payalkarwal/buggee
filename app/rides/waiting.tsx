@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/context/ThemeContext';
 
@@ -32,6 +32,7 @@ const tierIcons = {
 
 export default function WaitingScreen() {
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const tier = (params.tier as 'Standard' | 'Delux' | 'VIP') || 'Standard';
   const pickup = (params.pickup as string) || 'Current Location';
@@ -237,13 +238,13 @@ export default function WaitingScreen() {
       </View>
 
       {/* Trip Details Modal */}
-      <Modal visible={showDetails} animationType="slide" transparent onRequestClose={toggleDetails}>
+      <Modal visible={showDetails} animationType="slide" transparent statusBarTranslucent={true} onRequestClose={toggleDetails}>
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={toggleDetails} />
           <Animated.View
             style={[
               styles.detailsDrawer,
-              { backgroundColor: colors.modalBg, borderColor: colors.border, transform: [{ translateY: detailsSlideAnim }] },
+              { backgroundColor: colors.modalBg, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, 24), transform: [{ translateY: detailsSlideAnim }] },
             ]}
           >
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
@@ -536,7 +537,9 @@ const styles = StyleSheet.create({
   detailsDrawer: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    padding: 28,
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 0,
     borderTopWidth: 1,
   },
   drawerHandle: {

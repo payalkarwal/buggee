@@ -16,7 +16,7 @@ import {
   View
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '@/context/ThemeContext';
 
@@ -40,18 +40,18 @@ const lightMapStyle = [
 ];
 
 const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#000000' }] },
+  { elementType: 'geometry', stylers: [{ color: '#1C1C24' }] },
   { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#000000' }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#1F1F1F' }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#0D0D0D' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#0F0F0F' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#0E1A12' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1F1F1F' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#262626' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#121212' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#080B10' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#8E8E93' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#1C1C24' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#2C2C35' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#24242E' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1C2D24' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2D2D38' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3A3A4D' }] },
+  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1A2840' }] },
 ];
 
 const SEARCH_SUGGESTIONS = [
@@ -63,6 +63,7 @@ const SEARCH_SUGGESTIONS = [
 
 export default function LocationSelectScreen() {
   const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const type = (params.type as 'pickup' | 'drop') || 'pickup';
   const tier = params.tier as string;
@@ -194,15 +195,7 @@ export default function LocationSelectScreen() {
             anchor={{ x: 0.5, y: 1 }}
             tracksViewChanges={false}
           >
-            <View style={styles.markerContainer}>
-              <Ionicons
-                name={type === 'pickup' ? 'location-sharp' : 'location-sharp'}
-                size={46}
-                color={type === 'pickup' ? colors.accent : '#E53935'}
-                style={styles.markerIcon}
-              />
-              <View style={[styles.markerDot, { backgroundColor: '#FFFFFF' }]} />
-            </View>
+            <Ionicons name="location" size={42} color="#E53935" />
           </Marker>
         </MapView>
 
@@ -291,7 +284,7 @@ export default function LocationSelectScreen() {
       </View>
 
       {/* Bottom Address Drawer */}
-      <View style={[styles.bottomDrawer, { backgroundColor: colors.bg, borderTopColor: colors.border }]}>
+      <View style={[styles.bottomDrawer, { backgroundColor: colors.bg, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 16) }]}>
         <View style={[styles.addressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.addressIconContainer, { backgroundColor: type === 'pickup' ? colors.accentDim : '#FFE5E5' }]}>
             <Ionicons name="location" size={20} color={type === 'pickup' ? colors.accent : '#E53935'} />
@@ -326,13 +319,14 @@ export default function LocationSelectScreen() {
         visible={showConfirmDrawer}
         animationType="fade"
         transparent
+        statusBarTranslucent={true}
         onRequestClose={() => setShowConfirmDrawer(false)}
       >
         <View style={[styles.confirmOverlay, { backgroundColor: colors.overlay }]}>
           <Animated.View
             style={[
               styles.confirmDrawer,
-              { backgroundColor: colors.modalBg, borderColor: colors.border, transform: [{ translateY: confirmDrawerAnim }] },
+              { backgroundColor: colors.modalBg, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, 24), transform: [{ translateY: confirmDrawerAnim }] },
             ]}
           >
             {/* Success Icon */}
@@ -507,7 +501,9 @@ const styles = StyleSheet.create({
   },
   bottomDrawer: {
     borderTopWidth: 1,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 0,
     gap: 16,
   },
   addressCard: {
@@ -558,7 +554,9 @@ const styles = StyleSheet.create({
   confirmDrawer: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    padding: 28,
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 0,
     borderTopWidth: 1,
     alignItems: 'center',
   },

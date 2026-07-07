@@ -27,7 +27,7 @@ import Reanimated, {
     withSpring,
     withTiming,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ROUTES } from '@/constants/routes';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -56,6 +56,7 @@ const GRID_ITEMS = [
 export default function SettingsScreen() {
     const router = useRouter();
     const { colors, isDark } = useAppTheme();
+    const insets = useSafeAreaInsets();
     const [userName, setUserName] = useState('Arjun Kumar');
     const [userEmail, setUserEmail] = useState('arjun@email.com');
     const [userImage, setUserImage] = useState<string | null>(null);
@@ -351,13 +352,15 @@ export default function SettingsScreen() {
             <Modal
                 visible={shareVisible}
                 transparent
+                statusBarTranslucent={true}
                 animationType="slide"
+                onRequestClose={() => setShareVisible(false)}
             >
                 <Pressable
                     style={[s.overlay, { backgroundColor: colors.overlay }]}
                     onPress={() => setShareVisible(false)}
                 >
-                    <View style={[s.shareSheet, { backgroundColor: colors.modalBg, borderTopWidth: 1, borderColor: colors.border }]}>
+                    <View style={[s.shareSheet, { backgroundColor: colors.modalBg, borderTopWidth: 1, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, 35) }]}>
                         <View style={s.shareHeader}>
                             <Ionicons
                                 name="share-social-outline"

@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Href, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import { useAppTheme } from '@/context/ThemeContext';
@@ -21,12 +21,18 @@ import { useAppTheme } from '@/context/ThemeContext';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#0D0D0D' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#888888' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0D0D0D' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1A1A1A' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#2A2A2A' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0A0A0A' }] },
+  { elementType: 'geometry', stylers: [{ color: '#1C1C24' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#8E8E93' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#1C1C24' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#2C2C35' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#24242E' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1C2D24' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2D2D38' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3A3A4D' }] },
+  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1A2840' }] },
 ];
 
 const tierPrices = {
@@ -82,6 +88,7 @@ const NEARBY_PLACES = [
 
 export default function RideOptionsScreen() {
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const tier = (params.tier as 'Standard' | 'Delux' | 'VIP') || 'Standard';
   const type = params.type as string | undefined;
@@ -147,22 +154,22 @@ export default function RideOptionsScreen() {
       setIsSelectingPickup(false);
       // Navigate back to home with updated pickup, preserving drop location
       setTimeout(() => {
-        const params = new URLSearchParams();
-        params.append('pickup', place.name);
-        if (dropLocation) params.append('drop', dropLocation);
-        params.append('tier', tier);
-        router.push('/(tabs)?' + params.toString());
+        const searchParams = new URLSearchParams();
+        searchParams.append('pickup', place.name);
+        if (dropLocation) searchParams.append('drop', dropLocation);
+        searchParams.append('tier', tier);
+        router.push(('/(tabs)?' + searchParams.toString()) as Href);
       }, 200);
     } else if (isSelectingDrop) {
       setDropLocation(place.name);
       setIsSelectingDrop(false);
       // Navigate back to home with updated drop
       setTimeout(() => {
-        const params = new URLSearchParams();
-        params.append('pickup', pickupLocation);
-        params.append('drop', place.name);
-        params.append('tier', tier);
-        router.push('/(tabs)?' + params.toString());
+        const searchParams = new URLSearchParams();
+        searchParams.append('pickup', pickupLocation);
+        searchParams.append('drop', place.name);
+        searchParams.append('tier', tier);
+        router.push(('/(tabs)?' + searchParams.toString()) as Href);
       }, 200);
     } else {
       // If no selection mode, clicking should select drop location
@@ -441,13 +448,13 @@ export default function RideOptionsScreen() {
       />
 
       {/* Waiting Drawer - "Ride requested" */}
-      <Modal visible={showWaitingDrawer} animationType="none" transparent onRequestClose={closeWaitingDrawer}>
+      <Modal visible={showWaitingDrawer} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeWaitingDrawer}>
         <Animated.View style={[styles.waitingOverlay, { backgroundColor: 'rgba(0,0,0,0.7)', opacity: waitingDrawerFadeAnim }]}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={closeWaitingDrawer} />
           <Animated.View
             style={[
               styles.waitingDrawer,
-              { backgroundColor: bg, borderColor: border, transform: [{ translateY: waitingDrawerSlideAnim }] },
+              { backgroundColor: bg, borderColor: border, paddingBottom: Math.max(insets.bottom, 24), transform: [{ translateY: waitingDrawerSlideAnim }] },
             ]}
           >
             <View style={[styles.drawerHandle, { backgroundColor: border }]} />
@@ -549,13 +556,13 @@ export default function RideOptionsScreen() {
       </Modal>
 
       {/* Trip Details Drawer */}
-      <Modal visible={showTripDetails} animationType="slide" transparent onRequestClose={toggleTripDetails}>
+      <Modal visible={showTripDetails} animationType="slide" transparent statusBarTranslucent={true} onRequestClose={toggleTripDetails}>
         <View style={[styles.detailsOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={toggleTripDetails} />
           <Animated.View
             style={[
               styles.detailsDrawer,
-              { backgroundColor: bg, borderColor: border, transform: [{ translateY: detailsSlideAnim }] },
+              { backgroundColor: bg, borderColor: border, paddingBottom: Math.max(insets.bottom, 24), transform: [{ translateY: detailsSlideAnim }] },
             ]}
           >
             <View style={[styles.drawerHandle, { backgroundColor: border }]} />
@@ -684,7 +691,7 @@ export default function RideOptionsScreen() {
       </Modal>
 
       {/* Ride Confirmed Drawer */}
-      <Modal visible={showRideConfirmed} animationType="slide" transparent onRequestClose={() => setShowRideConfirmed(false)}>
+      <Modal visible={showRideConfirmed} animationType="slide" transparent statusBarTranslucent={true} onRequestClose={() => setShowRideConfirmed(false)}>
         <View style={{ flex: 1 }}>
           {/* Map Background with Route */}
           <MapView
@@ -701,13 +708,9 @@ export default function RideOptionsScreen() {
             {/* Pickup Marker */}
             <Marker
               coordinate={{ latitude: 28.6139, longitude: 77.2090 }}
-              anchor={{ x: 0.5, y: 0.5 }}
+              anchor={{ x: 0.5, y: 1 }}
             >
-              <View style={[styles.markerContainer, { backgroundColor: accent }]}>
-                <View style={[styles.markerInner, { backgroundColor: bg }]}>
-                  <View style={[styles.markerDot, { backgroundColor: accent }]} />
-                </View>
-              </View>
+              <Ionicons name="location" size={38} color="#E53935" />
             </Marker>
 
             {/* Drop Marker */}
@@ -738,7 +741,7 @@ export default function RideOptionsScreen() {
             <Animated.View
               style={[
                 styles.confirmedDrawer,
-                { backgroundColor: bg, borderColor: border, transform: [{ translateY: confirmedSlideAnim }] },
+                { backgroundColor: bg, borderColor: border, paddingBottom: Math.max(insets.bottom, 24), transform: [{ translateY: confirmedSlideAnim }] },
               ]}
             >
             <View style={[styles.drawerHandle, { backgroundColor: border }]} />
@@ -859,14 +862,14 @@ export default function RideOptionsScreen() {
       </Modal>
 
       {/* Pickup Time Modal */}
-      <Modal visible={showPickupTimeModal} animationType="fade" transparent onRequestClose={() => setShowPickupTimeModal(false)}>
+      <Modal visible={showPickupTimeModal} animationType="fade" transparent statusBarTranslucent={true} onRequestClose={() => setShowPickupTimeModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
             activeOpacity={1}
             onPress={() => setShowPickupTimeModal(false)}
           />
-          <View style={[styles.modalSheet, { backgroundColor: bg, borderColor: border }]}>
+          <View style={[styles.modalSheet, { backgroundColor: bg, borderColor: border, paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={[styles.modalHandle, { backgroundColor: border }]} />
 
             <Text style={[styles.modalTitle, { color: textMain }]}>Pickup time</Text>
@@ -929,14 +932,14 @@ export default function RideOptionsScreen() {
       </Modal>
 
       {/* Riding For Modal */}
-      <Modal visible={showRidingForModal} animationType="fade" transparent onRequestClose={() => setShowRidingForModal(false)}>
+      <Modal visible={showRidingForModal} animationType="fade" transparent statusBarTranslucent={true} onRequestClose={() => setShowRidingForModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
             activeOpacity={1}
             onPress={() => setShowRidingForModal(false)}
           />
-          <View style={[styles.modalSheet, { backgroundColor: bg, borderColor: border }]}>
+          <View style={[styles.modalSheet, { backgroundColor: bg, borderColor: border, paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={[styles.modalHandle, { backgroundColor: border }]} />
 
             <Text style={[styles.modalTitle, { color: textMain }]}>Who's riding?</Text>
@@ -999,14 +1002,14 @@ export default function RideOptionsScreen() {
       </Modal>
 
       {/* Cancel Reasons Modal */}
-      <Modal visible={showCancelReasonsModal} animationType="fade" transparent onRequestClose={() => setShowCancelReasonsModal(false)}>
+      <Modal visible={showCancelReasonsModal} animationType="fade" transparent statusBarTranslucent={true} onRequestClose={() => setShowCancelReasonsModal(false)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity
             style={StyleSheet.absoluteFillObject}
             activeOpacity={1}
             onPress={() => setShowCancelReasonsModal(false)}
           />
-          <View style={[styles.modalSheet, { backgroundColor: bg, borderColor: border }]}>
+          <View style={[styles.modalSheet, { backgroundColor: bg, borderColor: border, paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={[styles.modalHandle, { backgroundColor: border }]} />
 
             <Text style={[styles.modalTitle, { color: textMain }]}>Why do you want to cancel?</Text>
@@ -1355,7 +1358,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 24,
-    paddingBottom: 40,
     paddingTop: 12,
     borderTopWidth: 1,
   },
@@ -1590,8 +1592,8 @@ const styles = StyleSheet.create({
   detailsDrawer: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: 32,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     borderTopWidth: 1,
   },
   detailsDrawerTitle: {
@@ -1830,7 +1832,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
-    paddingBottom: 32,
     paddingTop: 12,
     borderTopWidth: 1,
   },
@@ -1911,8 +1912,8 @@ const styles = StyleSheet.create({
   confirmedDrawer: {
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    padding: 24,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    paddingTop: 24,
     borderTopWidth: 1,
   },
   confirmedTitle: {

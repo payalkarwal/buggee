@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -23,14 +24,14 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import { SafeAreaView as SafeAreaContextView } from 'react-native-safe-area-context';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import { SafeAreaView as SafeAreaContextView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CustomTabBar from '@/components/navigation/CustomTabBar';
 import { ROUTES } from '@/constants/routes';
 import { useAppTheme } from '@/context/ThemeContext';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const lightMapStyle = [
   { elementType: 'geometry', stylers: [{ color: '#F5F5F5' }] },
@@ -50,18 +51,18 @@ const lightMapStyle = [
 ];
 
 const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#000000' }] },
+  { elementType: 'geometry', stylers: [{ color: '#1C1C24' }] },
   { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#000000' }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#1F1F1F' }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#0D0D0D' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#0F0F0F' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#0E1A12' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1F1F1F' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#262626' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#121212' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#080B10' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#8E8E93' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#1C1C24' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#2C2C35' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#24242E' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1C2D24' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2D2D38' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3A3A4D' }] },
+  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1A2840' }] },
 ];
 
 const tierDetails = {
@@ -101,17 +102,18 @@ const tierDetails = {
 };
 
 const NEARBY_PLACES = [
-  { id: '1', name: '5/127, Block 17', address: 'Block 5, Subhash Nagar, Delhi', distance: '34 km' },
-  { id: '2', name: 'Gurgaon Railway Station Parking', address: 'Kheri, Ashok Vihar, Sector 3, Gurugram, Haryana', distance: '16 km' },
-  { id: '3', name: 'Jagannath Community College (JCC)', address: 'Community Center, Plot No. 2 & 3, Sector 3, Rohini', distance: '43 km' },
-  { id: '4', name: 'Centrum Plaza', address: 'Golf Course Rd, near ILM Institute, Sector 53', distance: '3.3 km' },
-  { id: '5', name: 'Huda City Centre Metro', address: 'Huda City Centre, Sector 29, New Delhi', distance: '7.5 km' },
-  { id: '6', name: 'Netaji Subhash Place Metro Station', address: 'Ring Rd, Near D Mall, Netaji Subhash Place', distance: '42 km' },
+  { id: '1', name: '5/127, Block 17', address: 'Block 5, Subhash Nagar, Delhi', distance: '34 km', lat: '28.6421', lon: '77.1156' },
+  { id: '2', name: 'Gurgaon Railway Station Parking', address: 'Kheri, Ashok Vihar, Sector 3, Gurugram, Haryana', distance: '16 km', lat: '28.4595', lon: '77.0266' },
+  { id: '3', name: 'Jagannath Community College (JCC)', address: 'Community Center, Plot No. 2 & 3, Sector 3, Rohini', distance: '43 km', lat: '28.7041', lon: '77.1025' },
+  { id: '4', name: 'Centrum Plaza', address: 'Golf Course Rd, near ILM Institute, Sector 53', distance: '3.3 km', lat: '28.4437', lon: '77.1028' },
+  { id: '5', name: 'Huda City Centre Metro', address: 'Huda City Centre, Sector 29, New Delhi', distance: '7.5 km', lat: '28.4594', lon: '77.0724' },
+  { id: '6', name: 'Netaji Subhash Place Metro Station', address: 'Ring Rd, Near D Mall, Netaji Subhash Place', distance: '42 km', lat: '28.6969', lon: '77.1537' },
 ];
 
 
 export default function HomeScreen() {
   const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const returnedPickup = params.pickup as string | undefined;
   const returnedDrop = params.drop as string | undefined;
@@ -191,6 +193,14 @@ export default function HomeScreen() {
     drop: string;
     price: string;
   } | null>(null);
+
+  // ── Route and coordinates state ──
+  const [routeCoordinates, setRouteCoordinates] = useState<Array<{ latitude: number; longitude: number }>>([]);
+  const [pickupCoords, setPickupCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [dropCoords, setDropCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+
   const drawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const drawerFadeAnim = useRef(new Animated.Value(0)).current;
   const bookingDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -212,6 +222,7 @@ export default function HomeScreen() {
   const rideBookedDrawerSlideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const rideBookedDrawerFadeAnim = useRef(new Animated.Value(0)).current;
   const tabBarAnim = useRef(new Animated.Value(1)).current;
+  const rideSectionSlideAnim = useRef(new Animated.Value(500)).current;
 
   const openDrawer = (tier: 'Standard' | 'Delux' | 'VIP') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -622,6 +633,7 @@ export default function HomeScreen() {
     setSelectedCancelReason(null);
     setBookedRide(null);
     setShareTripEnabled(false);
+    clearRoute(); // Clear the route from map
   };
 
   const handleWaitForDriver = () => {
@@ -638,9 +650,11 @@ export default function HomeScreen() {
     }, 300);
   };
 
-  const handleSelectPlace = (place: typeof NEARBY_PLACES[0]) => {
+  const handleSelectPlace = (place: { id: string; name: string; address: string; distance: string; lat?: string; lon?: string }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!selectedTier) return;
+
+    console.log('📍 Selected place:', place.name, 'lat:', place.lat, 'lon:', place.lon);
 
     // Update tier-specific location
     setTierLocations(prev => ({
@@ -650,6 +664,22 @@ export default function HomeScreen() {
         [locationSelectionType]: place.name,
       }
     }));
+
+    // Store coordinates for routing
+    if (place.lat && place.lon) {
+      const coords = {
+        latitude: parseFloat(place.lat),
+        longitude: parseFloat(place.lon),
+      };
+      console.log('📍 Setting', locationSelectionType, 'coords:', coords);
+      if (locationSelectionType === 'pickup') {
+        setPickupCoords(coords);
+      } else {
+        setDropCoords(coords);
+      }
+    } else {
+      console.log('⚠️ No coordinates for place:', place.name);
+    }
     // Don't close the drawer - let user select both locations
   };
 
@@ -695,6 +725,11 @@ export default function HomeScreen() {
             Delux: { ...prev.Delux, pickup: prev.Delux.pickup === '' ? locationName : prev.Delux.pickup },
             VIP: { ...prev.VIP, pickup: prev.VIP.pickup === '' ? locationName : prev.VIP.pickup },
           }));
+          // Set pickup coordinates from user's current location
+          setPickupCoords({
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+          });
         }
       }
     };
@@ -772,6 +807,85 @@ export default function HomeScreen() {
     setSearchResults([]);
     closeLocationDrawer();
   };
+
+  // ══════════════════════════════════════════════════════════════════════
+  // OSRM ROUTING - Fetch route that follows roads and streets
+  // ══════════════════════════════════════════════════════════════════════
+  const fetchRoute = async (
+    startLat: number,
+    startLng: number,
+    endLat: number,
+    endLng: number
+  ) => {
+    setIsLoadingRoute(true);
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+    console.log('🚗 OSRM URL:', url);
+
+    try {
+      // OSRM API - Returns GeoJSON coordinates that follow actual roads
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log('🚗 OSRM Response code:', data.code);
+
+      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+
+        // Extract coordinates from GeoJSON (OSRM returns [lng, lat], we need {latitude, longitude})
+        const coordinates = route.geometry.coordinates.map((coord: [number, number]) => ({
+          latitude: coord[1],
+          longitude: coord[0],
+        }));
+
+        console.log('🚗 Route coordinates count:', coordinates.length);
+        setRouteCoordinates(coordinates);
+
+        // Calculate distance and duration
+        const distanceKm = (route.distance / 1000).toFixed(1);
+        const durationMins = Math.ceil(route.duration / 60);
+        setRouteInfo({
+          distance: `${distanceKm} km`,
+          duration: `${durationMins} min`,
+        });
+        console.log('🚗 Route info:', distanceKm, 'km,', durationMins, 'min');
+
+        // Fit map to show the entire route
+        if (mapRef.current && coordinates.length > 0) {
+          mapRef.current.fitToCoordinates(coordinates, {
+            edgePadding: { top: 100, right: 50, bottom: 350, left: 50 },
+            animated: true,
+          });
+        }
+      } else {
+        console.log('⚠️ OSRM error:', data.code, data.message);
+      }
+    } catch (error) {
+      console.log('❌ Route fetch error:', error);
+    } finally {
+      setIsLoadingRoute(false);
+    }
+  };
+
+  // Clear route and coordinates
+  const clearRoute = () => {
+    setRouteCoordinates([]);
+    setPickupCoords(null);
+    setDropCoords(null);
+    setRouteInfo(null);
+  };
+
+  // Fetch route when both pickup and drop coordinates are set
+  useEffect(() => {
+    console.log('🗺️ Route useEffect - pickup:', pickupCoords, 'drop:', dropCoords);
+    if (pickupCoords && dropCoords) {
+      console.log('🚗 Fetching route...');
+      fetchRoute(
+        pickupCoords.latitude,
+        pickupCoords.longitude,
+        dropCoords.latitude,
+        dropCoords.longitude
+      );
+    }
+  }, [pickupCoords, dropCoords]);
 
   const modalSlideAnim = useRef(new Animated.Value(500)).current;
   const modalFadeAnim = useRef(new Animated.Value(0)).current;
@@ -902,6 +1016,16 @@ export default function HomeScreen() {
     loadLocation();
   }, []);
 
+  // Slide-up animation for Choose Your Ride section
+  useEffect(() => {
+    Animated.timing(rideSectionSlideAnim, {
+      toValue: 0,
+      duration: 750,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
   // Waiting drawer animations
   useEffect(() => {
     if (isWaitingDrawerOpen) {
@@ -961,6 +1085,22 @@ export default function HomeScreen() {
     let posSub: Location.LocationSubscription | null = null;
 
     const startWatch = async () => {
+      reverseGeocodedRef.current = false;
+      centeredOnceRef.current = false;
+
+      // Get immediate location first to center the map quickly
+      try {
+        const currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        const coords = { latitude: currentLoc.coords.latitude, longitude: currentLoc.coords.longitude };
+        setUserLocation(coords);
+        setRegion({ ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+        mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 800);
+        centeredOnceRef.current = true;
+      } catch (e) {
+        console.log('Initial location fetch error:', e);
+      }
+
+      // Then start watching for updates
       posSub = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.High, distanceInterval: 5, timeInterval: 2000 },
         (loc) => {
@@ -1038,77 +1178,92 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* Map - Full screen when booking drawer is open */}
-      <View style={{ height: isBookingDrawerOpen ? SCREEN_HEIGHT : SCREEN_HEIGHT * 0.50 }}>
-        <MapView
-          ref={mapRef}
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={region}
-          customMapStyle={isDark ? darkMapStyle : lightMapStyle}
-          showsUserLocation={false}
-          showsCompass={false}
-          showsScale={false}
-          rotateEnabled
-          pitchEnabled
-        >
-          {/* Precise pickup location pin — Professional Uber/Rapido style */}
-          {userLocation && (
-            <Marker
-              coordinate={userLocation}
-              anchor={{ x: 0.5, y: 1 }}
-              tracksViewChanges={false}
-              zIndex={2}
-            >
-              <Animated.View style={[styles.markerContainer, { transform: [{ scale: markerBounceAnim }] }]} collapsable={false}>
-                {/* Outer ripple effect */}
-                <Animated.View
-                  style={[
-                    styles.markerRipple,
-                    {
-                      transform: [
-                        {
-                          scale: markerRippleAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [1, 2.5],
-                          }),
-                        },
-                      ],
-                      opacity: markerRippleAnim.interpolate({
-                        inputRange: [0, 0.3, 1],
-                        outputRange: [0.4, 0.15, 0],
-                      }),
-                    },
-                  ]}
-                />
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* FULL SCREEN MAP                                                     */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <MapView
+        ref={mapRef}
+        style={{ flex: 1 }}
+        initialRegion={region}
+        customMapStyle={isDark ? darkMapStyle : lightMapStyle}
+        showsUserLocation={false}
+        showsCompass={false}
+        showsScale={false}
+        rotateEnabled
+        pitchEnabled
+      >
+        {/* Current user location marker — Blue dot */}
+        {userLocation && (
+          <Marker
+            coordinate={userLocation}
+            anchor={{ x: 0.5, y: 0.5 }}
+            centerOffset={{ x: 0, y: 0 }}
+            zIndex={2}
+          >
+            <View style={styles.currentLocationMarker}>
+              <View style={styles.currentLocationDot} />
+            </View>
+          </Marker>
+        )}
 
-                {/* Pulsing base circle */}
-                <Animated.View
-                  style={[
-                    styles.markerBase,
-                    {
-                      transform: [{ scale: markerPulseAnim }],
-                    },
-                  ]}
-                />
+        {/* Route Polyline - follows actual roads via OSRM */}
+        {routeCoordinates.length > 0 && (
+          <Polyline
+            coordinates={routeCoordinates}
+            strokeColor="#FF4F8B"
+            strokeWidth={4}
+          />
+        )}
 
-                {/* Main pin */}
-                <View style={styles.markerPinWrapper}>
-                  <View style={styles.markerPinShadow} />
-                  <View style={styles.markerPin}>
-                    <View style={styles.markerPinInner}>
-                      <Ionicons name="location" size={18} color="#FFFFFF" />
-                    </View>
-                  </View>
-                  <View style={styles.markerPinPoint} />
-                </View>
-              </Animated.View>
-            </Marker>
-          )}
+        {/* Pickup Marker - Green */}
+        {pickupCoords && (
+          <Marker
+            coordinate={pickupCoords}
+            anchor={{ x: 0.5, y: 1 }}
+            zIndex={3}
+          >
+            <View style={styles.routeMarkerContainer}>
+              <View style={[styles.routeMarkerPin, { backgroundColor: '#4CAF50' }]}>
+                <Ionicons name="location" size={16} color="#FFF" />
+              </View>
+              <View style={[styles.routeMarkerShadow, { backgroundColor: '#4CAF50' }]} />
+            </View>
+          </Marker>
+        )}
 
-        </MapView>
-      </View>
+        {/* Drop Marker - Red */}
+        {dropCoords && (
+          <Marker
+            coordinate={dropCoords}
+            anchor={{ x: 0.5, y: 1 }}
+            zIndex={3}
+          >
+            <View style={styles.routeMarkerContainer}>
+              <View style={[styles.routeMarkerPin, { backgroundColor: '#E53935' }]}>
+                <Ionicons name="flag" size={14} color="#FFF" />
+              </View>
+              <View style={[styles.routeMarkerShadow, { backgroundColor: '#E53935' }]} />
+            </View>
+          </Marker>
+        )}
+      </MapView>
 
-      {/* Header overlay — only notification button */}
+      {/* Route Info Card - shows distance and duration */}
+      {routeInfo && (
+        <View style={[styles.routeInfoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.routeInfoRow}>
+            <Ionicons name="navigate" size={18} color={colors.accent} />
+            <Text style={[styles.routeInfoText, { color: colors.text }]}>{routeInfo.distance}</Text>
+          </View>
+          <View style={[styles.routeInfoDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.routeInfoRow}>
+            <Ionicons name="time" size={18} color={colors.accent} />
+            <Text style={[styles.routeInfoText, { color: colors.text }]}>{routeInfo.duration}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Header overlay */}
       <SafeAreaContextView
         edges={['top']}
         style={{ position: 'absolute', top: 0, left: 0, right: 0 }}
@@ -1132,30 +1287,40 @@ export default function HomeScreen() {
             }}
             style={[styles.headerBtn, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
           >
-            <Ionicons
-              name="notifications-outline"
-              size={26}
-              color={colors.text}
-            />
+            <Ionicons name="notifications-outline" size={26} color={colors.text} />
           </TouchableOpacity>
         </View>
       </SafeAreaContextView>
 
-      {/* Recenter FAB */}
+      {/* Recenter FAB - positioned above the booking card */}
       <TouchableOpacity
-        style={[styles.floatingFab, { backgroundColor: colors.card, borderColor: colors.border }]}
+        style={[styles.mapRecenterFab, { backgroundColor: colors.card, borderColor: colors.border }]}
         onPress={handleRecenter}
         activeOpacity={0.8}
       >
         <Ionicons name="locate" size={22} color={colors.accent} />
       </TouchableOpacity>
 
-      {/* Booking card */}
-      <View style={[styles.bottomHalf, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* BOTTOM HALF - Floating Booking Card with Slide Animation            */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <Animated.View
+        style={[
+          styles.bottomHalf,
+          {
+            backgroundColor: colors.bg,
+            borderColor: colors.border,
+            transform: [{ translateY: rideSectionSlideAnim }]
+          }
+        ]}
+      >
+        {/* Drag Handle */}
+        <View style={[styles.bottomHalfHandle, { backgroundColor: colors.border }]} />
+
+        {/* Floating Booking Card */}
         <View style={styles.floatingBookingCard}>
           <View style={styles.bookingCardHeader}>
             <Text style={[styles.bookingSectionTitle, { color: colors.text }]}>Choose Your Ride</Text>
-
           </View>
 
           {/* Standard */}
@@ -1170,11 +1335,7 @@ export default function HomeScreen() {
                 <View style={styles.tierNameRow}>
                   <Text style={[styles.tierName, { color: colors.text }]}>Standard</Text>
                   <TouchableOpacity onPress={() => openDrawer('Standard')} activeOpacity={0.6}>
-                    <Ionicons
-                      name="information-circle-outline"
-                      size={18}
-                      color={colors.textSub}
-                    />
+                    <Ionicons name="information-circle-outline" size={18} color={colors.textSub} />
                   </TouchableOpacity>
                 </View>
                 <Text style={[styles.tierDesc, { color: colors.textSub }]}>Comfortable & affordable</Text>
@@ -1205,11 +1366,7 @@ export default function HomeScreen() {
                 <View style={styles.tierNameRow}>
                   <Text style={[styles.tierName, { color: colors.text }]}>Delux</Text>
                   <TouchableOpacity onPress={() => openDrawer('Delux')} activeOpacity={0.6}>
-                    <Ionicons
-                      name="information-circle-outline"
-                      size={18}
-                      color={colors.textSub}
-                    />
+                    <Ionicons name="information-circle-outline" size={18} color={colors.textSub} />
                   </TouchableOpacity>
                 </View>
                 <Text style={[styles.tierDesc, { color: colors.textSub }]}>Premium comfort ride</Text>
@@ -1238,15 +1395,9 @@ export default function HomeScreen() {
               <MaterialCommunityIcons name="crown" size={32} color={isDark ? "#FFFFFF" : "#000000"} style={{ width: 36, marginRight: 16 }} />
               <View style={styles.tierInfo}>
                 <View style={styles.tierNameRow}>
-                  <Text style={[styles.tierName, { color: isDark ? "#FFFFFF" : "#000000" }]}>
-                    VIP
-                  </Text>
+                  <Text style={[styles.tierName, { color: colors.text }]}>VIP</Text>
                   <TouchableOpacity onPress={() => openDrawer('VIP')} activeOpacity={0.6}>
-                    <Ionicons
-                      name="information-circle-outline"
-                      size={18}
-                      color={colors.textSub}
-                    />
+                    <Ionicons name="information-circle-outline" size={18} color={colors.textSub} />
                   </TouchableOpacity>
                 </View>
                 <Text style={[styles.tierDesc, { color: colors.textSub }]}>Luxury experience</Text>
@@ -1263,9 +1414,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
-
-
-      </View>
+      </Animated.View>
 
       {/* Custom Bottom Tab Bar Overlay */}
       <CustomTabBar activeTab="home" style={{ opacity: tabBarAnim }} />
@@ -1328,10 +1477,10 @@ export default function HomeScreen() {
       </Modal>
 
       {/* Booking Drawer */}
-      <Modal visible={isDrawerOpen} animationType="none" transparent onRequestClose={closeDrawer}>
+      <Modal visible={isDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeDrawer}>
         <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: drawerFadeAnim }]}>
           <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeDrawer} />
-          <Animated.View style={[styles.drawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: drawerSlideAnim }] }]}>
+          <Animated.View style={[styles.drawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: drawerSlideAnim }] }]}>
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
             {selectedTier && (() => {
               const details = tierDetails[selectedTier];
@@ -1383,10 +1532,10 @@ export default function HomeScreen() {
       </Modal>
 
       {/* Booking Drawer - Pickup/Drop Selection */}
-      <Modal visible={isBookingDrawerOpen} animationType="none" transparent onRequestClose={closeBookingDrawer}>
+      <Modal visible={isBookingDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeBookingDrawer}>
         <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: bookingDrawerFadeAnim }]}>
           <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeBookingDrawer} />
-          <Animated.View style={[styles.bookingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: bookingDrawerSlideAnim }] }]}>
+          <Animated.View style={[styles.bookingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: bookingDrawerSlideAnim }] }]}>
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
             {selectedTier && (() => {
               const details = tierDetails[selectedTier];
@@ -1559,6 +1708,9 @@ export default function HomeScreen() {
                       }));
                       setLocationSearchQuery('');
                       setSearchResults([]);
+                      setPickupCoords(null);
+                      setRouteCoordinates([]);
+                      setRouteInfo(null);
                     }
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1606,6 +1758,9 @@ export default function HomeScreen() {
                       }));
                       setLocationSearchQuery('');
                       setSearchResults([]);
+                      setDropCoords(null);
+                      setRouteCoordinates([]);
+                      setRouteInfo(null);
                     }
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1687,10 +1842,10 @@ export default function HomeScreen() {
       </Modal>
 
       {/* Waiting/Ride Requested Drawer */}
-      <Modal visible={isWaitingDrawerOpen} animationType="none" transparent onRequestClose={closeWaitingDrawer}>
+      <Modal visible={isWaitingDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeWaitingDrawer}>
         <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: waitingDrawerFadeAnim }]}>
           <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => { }} />
-          <Animated.View style={[styles.waitingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: waitingDrawerSlideAnim }] }]}>
+          <Animated.View style={[styles.waitingDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: waitingDrawerSlideAnim }] }]}>
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
             {/* Animated Loading Icon */}
@@ -1801,10 +1956,10 @@ export default function HomeScreen() {
       </Modal>
 
       {/* Ride Details Drawer */}
-      <Modal visible={isRideDetailsDrawerOpen} animationType="none" transparent onRequestClose={closeRideDetailsDrawer}>
+      <Modal visible={isRideDetailsDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeRideDetailsDrawer}>
         <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: rideDetailsDrawerFadeAnim }]}>
           <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeRideDetailsDrawer} />
-          <Animated.View style={[styles.rideDetailsDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: rideDetailsDrawerSlideAnim }] }]}>
+          <Animated.View style={[styles.rideDetailsDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 40), transform: [{ translateY: rideDetailsDrawerSlideAnim }] }]}>
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
             {/* Header */}
@@ -1958,10 +2113,10 @@ export default function HomeScreen() {
       </Modal>
 
       {/* Cancel Reasons Drawer */}
-      <Modal visible={isCancelReasonsDrawerOpen} animationType="none" transparent onRequestClose={closeCancelReasonsDrawer}>
+      <Modal visible={isCancelReasonsDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeCancelReasonsDrawer}>
         <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: cancelReasonsDrawerFadeAnim }]}>
           <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeCancelReasonsDrawer} />
-          <Animated.View style={[styles.cancelReasonsDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: cancelReasonsDrawerSlideAnim }] }]}>
+          <Animated.View style={[styles.cancelReasonsDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 40), transform: [{ translateY: cancelReasonsDrawerSlideAnim }] }]}>
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
             {/* Header */}
@@ -2056,10 +2211,10 @@ export default function HomeScreen() {
       </Modal>
 
       {/* Cancel Confirmation Drawer */}
-      <Modal visible={isCancelConfirmDrawerOpen} animationType="none" transparent onRequestClose={closeCancelConfirmDrawer}>
+      <Modal visible={isCancelConfirmDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeCancelConfirmDrawer}>
         <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: cancelConfirmDrawerFadeAnim }]}>
           <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeCancelConfirmDrawer} />
-          <Animated.View style={[styles.cancelConfirmDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: cancelConfirmDrawerSlideAnim }] }]}>
+          <Animated.View style={[styles.cancelConfirmDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 40), transform: [{ translateY: cancelConfirmDrawerSlideAnim }] }]}>
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
             {/* Warning Icon */}
@@ -2104,10 +2259,10 @@ export default function HomeScreen() {
       </Modal>
 
       {/* Ride Booked Drawer */}
-      <Modal visible={isRideBookedDrawerOpen} animationType="none" transparent onRequestClose={closeRideBookedDrawer}>
+      <Modal visible={isRideBookedDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeRideBookedDrawer}>
         <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: rideBookedDrawerFadeAnim }]}>
           <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={() => { }} />
-          <Animated.View style={[styles.rideBookedDrawer, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, transform: [{ translateY: rideBookedDrawerSlideAnim }] }]}>
+          <Animated.View style={[styles.rideBookedDrawer, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: rideBookedDrawerSlideAnim }] }]}>
             <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
             {/* Header with ETA and PIN */}
@@ -2247,9 +2402,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   logoContainer: {
-    height: 52,
-    width: 140,
-    borderRadius: 26,
+    height: 44,
+    width: 120,
+    borderRadius: 22,
     borderWidth: 1,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -2279,7 +2434,6 @@ const styles = StyleSheet.create({
   floatingFab: {
     position: 'absolute',
     right: 16,
-    top: SCREEN_HEIGHT * 0.50 - 66,
     width: 46,
     height: 46,
     borderRadius: 23,
@@ -2379,16 +2533,113 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
+  // ══════════════════════════════════════════════════════════════════════
+  // ROUTE MARKERS - Pickup (green) and Drop (red) markers
+  // ══════════════════════════════════════════════════════════════════════
+  currentLocationMarker: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(66, 133, 244, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  currentLocationDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#4285F4',
+    borderWidth: 2,
+    borderColor: '#FFF',
+    shadowColor: '#4285F4',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+
+  // ── Route Markers ──
+  routeMarkerContainer: {
+    alignItems: 'center',
+  },
+  routeMarkerPin: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  routeMarkerShadow: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: -4,
+    opacity: 0.3,
+  },
+
+  // ── Route Info Card ──
+  routeInfoCard: {
+    position: 'absolute',
+    top: 100,
+    left: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    zIndex: 10,
+  },
+  routeInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  routeInfoText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  routeInfoDivider: {
+    width: 1,
+    height: 20,
+    marginHorizontal: 14,
+  },
+
   // ── Bottom half ──
   bottomHalf: {
-    flex: 1,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1.5,
+    paddingTop: 8,
+    paddingBottom: 90, // Space for tab bar
+    zIndex: 20,
+  },
+  bottomHalfHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 8,
   },
   floatingBookingCard: {
     paddingHorizontal: 0,
-    paddingTop: 22,
+    paddingTop: 4,
   },
   bookingCardHeader: {
     marginBottom: 12,
@@ -3963,6 +4214,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
+  },
+
+  mapRecenterFab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 340, // Position above the booking card
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    zIndex: 15,
+    alignItems: 'center',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
 
 });
