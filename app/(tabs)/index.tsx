@@ -250,33 +250,85 @@ export default function HomeScreen() {
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true
       }),
+      // Hide "Choose Your Ride" section when tier drawer opens
+      Animated.timing(rideSectionSlideAnim, {
+        toValue: 600,
+        duration: 300,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true
+      }),
     ]).start();
   };
 
   const openBookingDrawer = (tier: 'Standard' | 'Delux' | 'VIP') => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSelectedTier(tier);
-    setIsBookingDrawerOpen(true);
-    Animated.parallel([
-      Animated.spring(bookingDrawerSlideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 12,
-        useNativeDriver: true
-      }),
-      Animated.timing(bookingDrawerFadeAnim, {
-        toValue: 1,
-        duration: 350,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true
-      }),
-      Animated.timing(tabBarAnim, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true
-      }),
-    ]).start();
+    // If tier details drawer is open, close it first before opening booking drawer
+    if (isDrawerOpen) {
+      closeDrawer();
+      setTimeout(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setSelectedTier(tier);
+        setIsBookingDrawerOpen(true);
+        Animated.parallel([
+          Animated.spring(bookingDrawerSlideAnim, {
+            toValue: 0,
+            tension: 50,
+            friction: 12,
+            useNativeDriver: true
+          }),
+          Animated.timing(bookingDrawerFadeAnim, {
+            toValue: 1,
+            duration: 350,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true
+          }),
+          Animated.timing(tabBarAnim, {
+            toValue: 0,
+            duration: 300,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true
+          }),
+          // Hide "Choose Your Ride" section
+          Animated.timing(rideSectionSlideAnim, {
+            toValue: 600,
+            duration: 300,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true
+          }),
+        ]).start();
+      }, 350); // Delay to allow tier drawer to close (300ms animation + 50ms buffer)
+    } else {
+      // No drawer open, open booking drawer directly
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setSelectedTier(tier);
+      setIsBookingDrawerOpen(true);
+      Animated.parallel([
+        Animated.spring(bookingDrawerSlideAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 12,
+          useNativeDriver: true
+        }),
+        Animated.timing(bookingDrawerFadeAnim, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true
+        }),
+        Animated.timing(tabBarAnim, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true
+        }),
+        // Hide "Choose Your Ride" section
+        Animated.timing(rideSectionSlideAnim, {
+          toValue: 600,
+          duration: 300,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true
+        }),
+      ]).start();
+    }
   };
 
   const closeDrawer = () => {
@@ -298,6 +350,13 @@ export default function HomeScreen() {
         toValue: 1,
         duration: 320,
         easing: Easing.out(Easing.cubic),
+        useNativeDriver: true
+      }),
+      // Slide "Choose Your Ride" section back up when tier drawer closes
+      Animated.spring(rideSectionSlideAnim, {
+        toValue: 0,
+        tension: 35,
+        friction: 10,
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -325,6 +384,13 @@ export default function HomeScreen() {
         toValue: 1,
         duration: 320,
         easing: Easing.out(Easing.cubic),
+        useNativeDriver: true
+      }),
+      // Show "Choose Your Ride" section when drawer closes (back button)
+      Animated.spring(rideSectionSlideAnim, {
+        toValue: 0,
+        tension: 35,
+        friction: 10,
         useNativeDriver: true
       }),
     ]).start(() => {
@@ -425,22 +491,71 @@ export default function HomeScreen() {
   };
 
   const openWaitingDrawer = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setIsWaitingDrawerOpen(true);
-    Animated.parallel([
-      Animated.spring(waitingDrawerSlideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 12,
-        useNativeDriver: true
-      }),
-      Animated.timing(waitingDrawerFadeAnim, {
-        toValue: 1,
-        duration: 350,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true
-      }),
-    ]).start();
+    // If booking drawer is open, close it first (without showing Choose Your Ride)
+    if (isBookingDrawerOpen) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Animated.parallel([
+        Animated.spring(bookingDrawerSlideAnim, {
+          toValue: SCREEN_HEIGHT,
+          tension: 55,
+          friction: 14,
+          useNativeDriver: true
+        }),
+        Animated.timing(bookingDrawerFadeAnim, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true
+        }),
+        Animated.timing(tabBarAnim, {
+          toValue: 1,
+          duration: 320,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true
+        }),
+        // Keep "Choose Your Ride" hidden during transition
+      ]).start(() => {
+        setIsBookingDrawerOpen(false);
+        setSelectedTier(null);
+      });
+
+      setTimeout(() => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setIsWaitingDrawerOpen(true);
+        Animated.parallel([
+          Animated.spring(waitingDrawerSlideAnim, {
+            toValue: 0,
+            tension: 50,
+            friction: 12,
+            useNativeDriver: true
+          }),
+          Animated.timing(waitingDrawerFadeAnim, {
+            toValue: 1,
+            duration: 350,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true
+          }),
+        ]).start();
+      }, 350); // Delay to allow booking drawer to close
+    } else {
+      // No drawer open, open waiting drawer directly
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsWaitingDrawerOpen(true);
+      Animated.parallel([
+        Animated.spring(waitingDrawerSlideAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 12,
+          useNativeDriver: true
+        }),
+        Animated.timing(waitingDrawerFadeAnim, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true
+        }),
+      ]).start();
+    }
   };
 
   const closeWaitingDrawer = () => {
@@ -583,24 +698,50 @@ export default function HomeScreen() {
   };
 
   const openRideBookedDrawer = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setIsRideBookedDrawerOpen(true);
-    // Generate random arrival time between 3-8 mins
-    setDriverArrivalMins(Math.floor(Math.random() * 6) + 3);
-    Animated.parallel([
-      Animated.spring(rideBookedDrawerSlideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 12,
-        useNativeDriver: true
-      }),
-      Animated.timing(rideBookedDrawerFadeAnim, {
-        toValue: 1,
-        duration: 350,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true
-      }),
-    ]).start();
+    // If waiting drawer is open, close it first
+    if (isWaitingDrawerOpen) {
+      closeWaitingDrawer();
+      setTimeout(() => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setIsRideBookedDrawerOpen(true);
+        // Generate random arrival time between 3-8 mins
+        setDriverArrivalMins(Math.floor(Math.random() * 6) + 3);
+        Animated.parallel([
+          Animated.spring(rideBookedDrawerSlideAnim, {
+            toValue: 0,
+            tension: 50,
+            friction: 12,
+            useNativeDriver: true
+          }),
+          Animated.timing(rideBookedDrawerFadeAnim, {
+            toValue: 1,
+            duration: 350,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true
+          }),
+        ]).start();
+      }, 350); // Delay to allow waiting drawer to close
+    } else {
+      // No drawer open, open ride booked drawer directly
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsRideBookedDrawerOpen(true);
+      // Generate random arrival time between 3-8 mins
+      setDriverArrivalMins(Math.floor(Math.random() * 6) + 3);
+      Animated.parallel([
+        Animated.spring(rideBookedDrawerSlideAnim, {
+          toValue: 0,
+          tension: 50,
+          friction: 12,
+          useNativeDriver: true
+        }),
+        Animated.timing(rideBookedDrawerFadeAnim, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true
+        }),
+      ]).start();
+    }
   };
 
   const closeRideBookedDrawer = () => {
@@ -1023,10 +1164,10 @@ export default function HomeScreen() {
 
   // Slide-up animation for Choose Your Ride section
   useEffect(() => {
-    Animated.timing(rideSectionSlideAnim, {
+    Animated.spring(rideSectionSlideAnim, {
       toValue: 0,
-      duration: 750,
-      easing: Easing.out(Easing.cubic),
+      tension: 35,
+      friction: 10,
       useNativeDriver: true,
     }).start();
   }, []);
@@ -1061,27 +1202,29 @@ export default function HomeScreen() {
   useEffect(() => {
     if (isWaitingDrawerOpen && !isRideBookedDrawerOpen) {
       const timer = setTimeout(() => {
-        // Close waiting drawer and open ride booked drawer
-        Animated.parallel([
-          Animated.timing(waitingDrawerSlideAnim, {
-            toValue: SCREEN_HEIGHT,
-            duration: 220,
-            useNativeDriver: true
-          }),
-          Animated.timing(waitingDrawerFadeAnim, {
-            toValue: 0,
-            duration: 180,
-            useNativeDriver: true
-          }),
-        ]).start(() => {
-          setIsWaitingDrawerOpen(false);
-          setTimeout(() => openRideBookedDrawer(), 200);
-        });
+        // openRideBookedDrawer will automatically close waiting drawer first
+        openRideBookedDrawer();
       }, 12000); // 12 seconds
 
       return () => clearTimeout(timer);
     }
   }, [isWaitingDrawerOpen, isRideBookedDrawerOpen]);
+
+  // Show/Hide "Choose Your Ride" section based on drawer states
+  useEffect(() => {
+    const allDrawersClosed = !isBookingDrawerOpen && !isWaitingDrawerOpen && !isRideBookedDrawerOpen;
+
+    if (allDrawersClosed) {
+      // Show "Choose Your Ride" section
+      Animated.timing(rideSectionSlideAnim, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true
+      }).start();
+    }
+    // Note: Hiding is handled in openBookingDrawer function
+  }, [isBookingDrawerOpen, isWaitingDrawerOpen, isRideBookedDrawerOpen]);
 
   // ── LIVE precise GPS — pin exact spot pe rehta hai aur move pe update hota hai ──
   // NOTE: Real precision sirf physical device pe milti hai (simulator fake/0 deta hai).
@@ -1504,6 +1647,15 @@ export default function HomeScreen() {
               return (
                 <View style={styles.drawerInnerContainer}>
                   <View style={styles.drawerHeader}>
+                    {/* Back Button */}
+                    <TouchableOpacity
+                      onPress={closeDrawer}
+                      style={[styles.tierBackButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="arrow-back" size={20} color={colors.text} />
+                    </TouchableOpacity>
+
                     <View style={styles.drawerHeaderLeft}>
                       {selectedTier === 'Standard' && (
                         <MaterialCommunityIcons name="car-side" size={32} color={isDark ? "#FFFFFF" : "#000000"} style={{ width: 36, marginRight: 12 }} />
@@ -1565,6 +1717,15 @@ export default function HomeScreen() {
               const details = tierDetails[selectedTier];
               return (
                 <View style={styles.drawerInnerContainer}>
+                  {/* Back Button */}
+                  <TouchableOpacity
+                    onPress={closeBookingDrawer}
+                    style={[styles.bookingBackButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="arrow-back" size={20} color={colors.text} />
+                  </TouchableOpacity>
+
                   {/* Enhanced Ride Header with Gradient-like Effect */}
                   <View style={[styles.enhancedRideHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={styles.rideHeaderTop}>
@@ -1662,10 +1823,8 @@ export default function HomeScreen() {
                           drop: currentDrop,
                           price: tierDetails[selectedTier].price,
                         });
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        closeBookingDrawer();
-                        // Go directly to Ride Requested (Waiting) drawer
-                        setTimeout(() => openWaitingDrawer(), 300);
+                        // openWaitingDrawer will close booking drawer first, then open waiting drawer
+                        openWaitingDrawer();
                       }
                     }}
                     disabled={!currentPickup || !currentDrop}
@@ -3018,6 +3177,15 @@ const styles = StyleSheet.create({
     borderRadius: 18, justifyContent: 'center', alignItems: 'center',
     borderWidth: 1,
   },
+  tierBackButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    marginRight: 12,
+  },
   drawerDetailsCard: {
     borderRadius: 20,
     padding: 18, borderWidth: 1, marginBottom: 20,
@@ -3056,6 +3224,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 20,
+  },
+  bookingBackButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    marginBottom: 16,
   },
 
   // Enhanced Ride Header
