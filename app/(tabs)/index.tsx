@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  BackHandler,
   Dimensions,
   Easing,
   FlatList,
@@ -1210,6 +1211,28 @@ export default function HomeScreen() {
     }
   }, [isWaitingDrawerOpen, isRideBookedDrawerOpen]);
 
+  // Handle Android back button
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // If tier drawer is open, close it and return to "Choose Your Ride"
+      if (isDrawerOpen) {
+        closeDrawer();
+        return true; // Prevent default back behavior
+      }
+
+      // If booking drawer is open, close it and return to "Choose Your Ride"
+      if (isBookingDrawerOpen) {
+        closeBookingDrawer();
+        return true; // Prevent default back behavior
+      }
+
+      // Allow default back behavior (no drawer is open)
+      return false;
+    });
+
+    return () => backHandler.remove();
+  }, [isDrawerOpen, isBookingDrawerOpen]);
+
   // Show/Hide "Choose Your Ride" section based on drawer states
   useEffect(() => {
     const allDrawersClosed = !isBookingDrawerOpen && !isWaitingDrawerOpen && !isRideBookedDrawerOpen;
@@ -1683,9 +1706,6 @@ export default function HomeScreen() {
                         <Text style={[styles.drawerSubtitle, { color: colors.textSub }]}>{details.desc}</Text>
                       </View>
                     </View>
-                    <TouchableOpacity onPress={closeDrawer} style={[styles.drawerCloseButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                      <Ionicons name="close" size={18} color={colors.text} />
-                    </TouchableOpacity>
                   </View>
 
                   {/* About Section Only */}
