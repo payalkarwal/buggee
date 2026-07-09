@@ -14,7 +14,10 @@ import {
   Easing,
   FlatList,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -164,6 +167,10 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; address: string; distance: string; lat?: string; lon?: string }>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rideBookingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [timerPaused, setTimerPaused] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(12000);
+  const timerStartTimeRef = useRef<number | null>(null);
   const [isWaitingDrawerOpen, setIsWaitingDrawerOpen] = useState(false);
   const [isRideDetailsDrawerOpen, setIsRideDetailsDrawerOpen] = useState(false);
   const [isCancelReasonsDrawerOpen, setIsCancelReasonsDrawerOpen] = useState(false);
@@ -523,6 +530,8 @@ export default function HomeScreen() {
       setTimeout(() => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setIsWaitingDrawerOpen(true);
+        setRemainingTime(12000); // Reset timer for new ride
+        setTimerPaused(false);
         Animated.parallel([
           Animated.spring(waitingDrawerSlideAnim, {
             toValue: 0,
@@ -542,6 +551,8 @@ export default function HomeScreen() {
       // No drawer open, open waiting drawer directly
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setIsWaitingDrawerOpen(true);
+      setRemainingTime(12000); // Reset timer for new ride
+      setTimerPaused(false);
       Animated.parallel([
         Animated.spring(waitingDrawerSlideAnim, {
           toValue: 0,
@@ -768,33 +779,45 @@ export default function HomeScreen() {
   const handleCancelReasonSelect = (reason: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedCancelReason(reason);
+
+    // Clear custom reason input when selecting a different reason
+    setShowCustomReasonInput(false);
+    setCustomReason('');
+    Keyboard.dismiss();
+
     closeCancelReasonsDrawer();
     setTimeout(() => openCancelConfirmDrawer(), 300);
   };
 
   const handleConfirmCancel = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+    // Clear the ride booking timer to prevent auto-transition to Ride Booked drawer
+    if (rideBookingTimerRef.current) {
+      clearTimeout(rideBookingTimerRef.current);
+      rideBookingTimerRef.current = null;
+    }
+
+    // Close all ride-related drawers
     closeCancelConfirmDrawer();
     closeRideDetailsDrawer();
     closeWaitingDrawer();
+    closeRideBookedDrawer();
+
+    // Reset all ride-related state
     setSelectedCancelReason(null);
     setBookedRide(null);
     setShareTripEnabled(false);
+    setCancelInitiatedFrom(null);
+    setRemainingTime(12000); // Reset timer
+    setTimerPaused(false);
     clearRoute(); // Clear the route from map
   };
 
   const handleWaitForDriver = () => {
     closeCancelConfirmDrawer();
     closeRideDetailsDrawer();
-    // Route back to the correct drawer based on where cancel was initiated
-    setTimeout(() => {
-      if (cancelInitiatedFrom === 'booked') {
-        openRideBookedDrawer();
-      } else {
-        openWaitingDrawer();
-      }
-      setCancelInitiatedFrom(null);
-    }, 300);
+    setCancelInitiatedFrom(null);
   };
 
   const handleSelectPlace = (place: { id: string; name: string; address: string; distance: string; lat?: string; lon?: string }) => {
@@ -1199,17 +1222,48 @@ export default function HomeScreen() {
     }
   }, [isWaitingDrawerOpen]);
 
-  // Auto-transition to Ride Booked drawer after 12 seconds
+  // Pause/Resume timer when cancel drawers open/close
   useEffect(() => {
-    if (isWaitingDrawerOpen && !isRideBookedDrawerOpen) {
-      const timer = setTimeout(() => {
+    if (isCancelReasonsDrawerOpen || isCancelConfirmDrawerOpen) {
+      // Pause timer
+      if (rideBookingTimerRef.current && !timerPaused) {
+        clearTimeout(rideBookingTimerRef.current);
+        rideBookingTimerRef.current = null;
+
+        // Calculate remaining time
+        if (timerStartTimeRef.current) {
+          const elapsed = Date.now() - timerStartTimeRef.current;
+          const remaining = Math.max(0, remainingTime - elapsed);
+          setRemainingTime(remaining);
+        }
+        setTimerPaused(true);
+      }
+    } else if (timerPaused && isWaitingDrawerOpen && !isRideBookedDrawerOpen) {
+      // Resume timer
+      setTimerPaused(false);
+    }
+  }, [isCancelReasonsDrawerOpen, isCancelConfirmDrawerOpen, isWaitingDrawerOpen, isRideBookedDrawerOpen, timerPaused, remainingTime]);
+
+  // Auto-transition to Ride Booked drawer after timer completes
+  useEffect(() => {
+    if (isWaitingDrawerOpen && !isRideBookedDrawerOpen && !timerPaused) {
+      timerStartTimeRef.current = Date.now();
+
+      rideBookingTimerRef.current = setTimeout(() => {
         // openRideBookedDrawer will automatically close waiting drawer first
         openRideBookedDrawer();
-      }, 12000); // 12 seconds
+        rideBookingTimerRef.current = null;
+        setRemainingTime(12000); // Reset for next ride
+      }, remainingTime);
 
-      return () => clearTimeout(timer);
+      return () => {
+        if (rideBookingTimerRef.current) {
+          clearTimeout(rideBookingTimerRef.current);
+          rideBookingTimerRef.current = null;
+        }
+      };
     }
-  }, [isWaitingDrawerOpen, isRideBookedDrawerOpen]);
+  }, [isWaitingDrawerOpen, isRideBookedDrawerOpen, timerPaused, remainingTime]);
 
   // Handle Android back button
   useEffect(() => {
@@ -2153,8 +2207,7 @@ export default function HomeScreen() {
               style={[styles.cancelRideButton, { borderColor: colors.border }]}
               onPress={() => {
                 setCancelInitiatedFrom('waiting');
-                closeWaitingDrawer();
-                setTimeout(() => openCancelReasonsDrawer(), 100);
+                openCancelReasonsDrawer();
               }}
               activeOpacity={0.7}
             >
@@ -2296,19 +2349,6 @@ export default function HomeScreen() {
             {/* Action Buttons */}
             <View style={styles.rideDetailsButtons}>
               <TouchableOpacity
-                style={[styles.cancelRideDetailButton, { borderColor: '#E53935' }]}
-                onPress={() => {
-                  setCancelInitiatedFrom(rideDetailsOpenedFrom);
-                  closeRideDetailsDrawer();
-                  setTimeout(() => openCancelReasonsDrawer(), 300);
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close-circle-outline" size={20} color="#E53935" />
-                <Text style={[styles.cancelRideDetailText, { color: '#E53935' }]}>Cancel Ride</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
                 style={[styles.closeDetailButton, { backgroundColor: colors.accent }]}
                 onPress={closeRideDetailsDrawer}
                 activeOpacity={0.85}
@@ -2322,77 +2362,89 @@ export default function HomeScreen() {
 
       {/* Cancel Reasons Drawer */}
       <Modal visible={isCancelReasonsDrawerOpen} animationType="none" transparent statusBarTranslucent={true} onRequestClose={closeCancelReasonsDrawer}>
-        <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: cancelReasonsDrawerFadeAnim }]}>
-          <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeCancelReasonsDrawer} />
-          <Animated.View style={[styles.cancelReasonsDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 40), transform: [{ translateY: cancelReasonsDrawerSlideAnim }] }]}>
-            <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <Animated.View style={[styles.drawerOverlay, { backgroundColor: colors.overlay, opacity: cancelReasonsDrawerFadeAnim }]}>
+            <TouchableOpacity style={styles.drawerBackdrop} activeOpacity={1} onPress={closeCancelReasonsDrawer} />
+            <Animated.View style={[styles.cancelReasonsDrawerContent, { backgroundColor: colors.modalBg, borderColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 40), transform: [{ translateY: cancelReasonsDrawerSlideAnim }] }]}>
+              <View style={[styles.drawerHandle, { backgroundColor: colors.border }]} />
 
-            {/* Header */}
-            <Text style={[styles.cancelReasonsTitle, { color: colors.text }]}>Why do you want to cancel?</Text>
-            <Text style={[styles.cancelReasonsSubtitle, { color: colors.textSub }]}>Help us improve by selecting a reason</Text>
-
-            {/* Reason Options */}
-            <View style={styles.cancelReasonsList}>
-              <TouchableOpacity
-                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
-                onPress={() => handleCancelReasonSelect('Driver is too far')}
-                activeOpacity={0.7}
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
-                  <Ionicons name="time-outline" size={22} color={colors.textSub} />
-                </View>
-                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Driver is too far</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
-              </TouchableOpacity>
+                {/* Header */}
+                <Text style={[styles.cancelReasonsTitle, { color: colors.text }]}>Why do you want to cancel?</Text>
+                <Text style={[styles.cancelReasonsSubtitle, { color: colors.textSub }]}>Help us improve by selecting a reason</Text>
 
-              <TouchableOpacity
-                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
-                onPress={() => handleCancelReasonSelect('Changed my mind')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
-                  <Ionicons name="refresh-outline" size={22} color={colors.textSub} />
-                </View>
-                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Changed my mind</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
-              </TouchableOpacity>
+                {/* Reason Options */}
+                <View style={styles.cancelReasonsList}>
+                  <TouchableOpacity
+                    style={[styles.cancelReasonItem, { borderColor: colors.border, opacity: showCustomReasonInput ? 0.5 : 1 }]}
+                    onPress={() => handleCancelReasonSelect('Driver is too far')}
+                    activeOpacity={0.7}
+                    disabled={showCustomReasonInput}
+                  >
+                    <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                      <Ionicons name="time-outline" size={22} color={colors.textSub} />
+                    </View>
+                    <Text style={[styles.cancelReasonText, { color: colors.text }]}>Driver is too far</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
-                onPress={() => handleCancelReasonSelect('Wrong pickup location')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
-                  <Ionicons name="location-outline" size={22} color={colors.textSub} />
-                </View>
-                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Wrong pickup location</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.cancelReasonItem, { borderColor: colors.border, opacity: showCustomReasonInput ? 0.5 : 1 }]}
+                    onPress={() => handleCancelReasonSelect('Changed my mind')}
+                    activeOpacity={0.7}
+                    disabled={showCustomReasonInput}
+                  >
+                    <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                      <Ionicons name="refresh-outline" size={22} color={colors.textSub} />
+                    </View>
+                    <Text style={[styles.cancelReasonText, { color: colors.text }]}>Changed my mind</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
-                onPress={() => handleCancelReasonSelect('Price is too high')}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
-                  <Ionicons name="pricetag-outline" size={22} color={colors.textSub} />
-                </View>
-                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Price is too high</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.cancelReasonItem, { borderColor: colors.border, opacity: showCustomReasonInput ? 0.5 : 1 }]}
+                    onPress={() => handleCancelReasonSelect('Wrong pickup location')}
+                    activeOpacity={0.7}
+                    disabled={showCustomReasonInput}
+                  >
+                    <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                      <Ionicons name="location-outline" size={22} color={colors.textSub} />
+                    </View>
+                    <Text style={[styles.cancelReasonText, { color: colors.text }]}>Wrong pickup location</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.cancelReasonItem, { borderColor: colors.border }]}
-                onPress={() => setShowCustomReasonInput(true)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
-                  <Ionicons name="ellipsis-horizontal-outline" size={22} color={colors.textSub} />
+                  <TouchableOpacity
+                    style={[styles.cancelReasonItem, { borderColor: colors.border, opacity: showCustomReasonInput ? 0.5 : 1 }]}
+                    onPress={() => handleCancelReasonSelect('Price is too high')}
+                    activeOpacity={0.7}
+                    disabled={showCustomReasonInput}
+                  >
+                    <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                      <Ionicons name="pricetag-outline" size={22} color={colors.textSub} />
+                    </View>
+                    <Text style={[styles.cancelReasonText, { color: colors.text }]}>Price is too high</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.cancelReasonItem, { borderColor: colors.border }]}
+                    onPress={() => setShowCustomReasonInput(true)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.cancelReasonIcon, { backgroundColor: colors.surface }]}>
+                      <Ionicons name="ellipsis-horizontal-outline" size={22} color={colors.textSub} />
+                    </View>
+                    <Text style={[styles.cancelReasonText, { color: colors.text }]}>Other reason</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
+                  </TouchableOpacity>
                 </View>
-                <Text style={[styles.cancelReasonText, { color: colors.text }]}>Other reason</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSub} />
-              </TouchableOpacity>
-            </View>
 
             {/* Custom Reason Input */}
             {showCustomReasonInput && (
@@ -2433,28 +2485,22 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* Keep My Ride Button */}
-            <TouchableOpacity
-              style={[styles.keepRideButton, { backgroundColor: colors.accent }]}
-              onPress={() => {
-                closeCancelReasonsDrawer();
-                // Route back to the correct drawer based on where cancel was initiated
-                setTimeout(() => {
-                  if (cancelInitiatedFrom === 'booked') {
-                    openRideBookedDrawer();
-                  } else if (cancelInitiatedFrom === 'waiting') {
-                    openWaitingDrawer();
-                  }
-                  setCancelInitiatedFrom(null);
-                }, 300);
-              }}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="car-outline" size={20} color="#000" />
-              <Text style={[styles.keepRideText, { color: '#000' }]}>Keep My Ride</Text>
-            </TouchableOpacity>
+                {/* Keep My Ride Button */}
+                <TouchableOpacity
+                  style={[styles.keepRideButton, { backgroundColor: colors.accent }]}
+                  onPress={() => {
+                    closeCancelReasonsDrawer();
+                    setCancelInitiatedFrom(null);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="car-outline" size={20} color="#000" />
+                  <Text style={[styles.keepRideText, { color: '#000' }]}>Keep My Ride</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </Animated.View>
           </Animated.View>
-        </Animated.View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Cancel Confirmation Drawer */}
@@ -2537,8 +2583,7 @@ export default function HomeScreen() {
                   style={[styles.rideBookedDotsBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => {
                     setRideDetailsOpenedFrom('booked');
-                    closeRideBookedDrawer();
-                    setTimeout(() => openRideDetailsDrawer(), 200);
+                    openRideDetailsDrawer();
                   }}
                   activeOpacity={0.7}
                 >
@@ -2628,8 +2673,7 @@ export default function HomeScreen() {
                 style={[styles.cancelRideSmallBtn, { borderColor: '#E53935' }]}
                 onPress={() => {
                   setCancelInitiatedFrom('booked');
-                  closeRideBookedDrawer();
-                  setTimeout(() => openCancelReasonsDrawer(), 200);
+                  openCancelReasonsDrawer();
                 }}
                 activeOpacity={0.7}
               >
