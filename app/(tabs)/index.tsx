@@ -988,7 +988,8 @@ export default function HomeScreen() {
     endLng: number
   ) => {
     setIsLoadingRoute(true);
-    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+    // Request multiple alternative routes from OSRM
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson&alternatives=true`;
     console.log('🚗 OSRM URL:', url);
 
     try {
@@ -998,13 +999,37 @@ export default function HomeScreen() {
       console.log('🚗 OSRM Response code:', data.code);
 
       if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
+        // Always select the shortest route by distance for accuracy
+        const route = data.routes.reduce((shortest: any, current: any) =>
+          current.distance < shortest.distance ? current : shortest
+        );
+        console.log(`🚗 Selected shortest route: ${(route.distance / 1000).toFixed(1)} km (from ${data.routes.length} available routes)`);
 
         // Extract coordinates from GeoJSON (OSRM returns [lng, lat], we need {latitude, longitude})
-        const coordinates = route.geometry.coordinates.map((coord: [number, number]) => ({
+        let coordinates = route.geometry.coordinates.map((coord: [number, number]) => ({
           latitude: coord[1],
           longitude: coord[0],
         }));
+
+        // Ensure route starts exactly at pickup and ends exactly at drop for perfect alignment
+        const startPoint = { latitude: startLat, longitude: startLng };
+        const endPoint = { latitude: endLat, longitude: endLng };
+
+        // Check if first coordinate is close to start point (within ~10 meters)
+        const firstCoord = coordinates[0];
+        const distanceToStart = Math.abs(firstCoord.latitude - startLat) + Math.abs(firstCoord.longitude - startLng);
+        if (distanceToStart > 0.0001) {
+          // Prepend exact start point
+          coordinates = [startPoint, ...coordinates];
+        }
+
+        // Check if last coordinate is close to end point (within ~10 meters)
+        const lastCoord = coordinates[coordinates.length - 1];
+        const distanceToEnd = Math.abs(lastCoord.latitude - endLat) + Math.abs(lastCoord.longitude - endLng);
+        if (distanceToEnd > 0.0001) {
+          // Append exact end point
+          coordinates = [...coordinates, endPoint];
+        }
 
         console.log('🚗 Route coordinates count:', coordinates.length);
         setRouteCoordinates(coordinates);
@@ -1044,6 +1069,7 @@ export default function HomeScreen() {
   };
 
   // Fetch route when both pickup and drop coordinates are set
+  // Automatically recalculates whenever pickup or destination changes
   useEffect(() => {
     console.log('🗺️ Route useEffect - pickup:', pickupCoords, 'drop:', dropCoords);
     if (pickupCoords && dropCoords) {
@@ -1440,34 +1466,54 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* Pickup Marker - Green */}
+        {/* Pickup Marker - Premium 3D circular badge design */}
         {pickupCoords && (
           <Marker
             coordinate={pickupCoords}
-            anchor={{ x: 0.5, y: 1 }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            centerOffset={{ x: 0, y: 0 }}
             zIndex={3}
           >
-            <View style={styles.routeMarkerContainer}>
-              <View style={[styles.routeMarkerPin, { backgroundColor: '#4CAF50' }]}>
-                <Ionicons name="location" size={16} color="#FFF" />
+            <View style={styles.pickupMarkerContainer}>
+              {/* Outer glow/shadow layer */}
+              <View style={styles.pickupMarkerGlow} />
+              {/* Main circular badge */}
+              <View style={styles.pickupMarkerBadge}>
+                {/* Inner circle */}
+                <View style={styles.pickupMarkerInner}>
+                  <View style={styles.pickupMarkerDot} />
+                </View>
               </View>
-              <View style={[styles.routeMarkerShadow, { backgroundColor: '#4CAF50' }]} />
+              {/* Bottom shadow for 3D depth */}
+              <View style={styles.pickupMarkerShadow} />
             </View>
           </Marker>
         )}
 
-        {/* Drop Marker - Red */}
+        {/* Drop Marker - Premium 3D pin/teardrop design */}
         {dropCoords && (
           <Marker
             coordinate={dropCoords}
             anchor={{ x: 0.5, y: 1 }}
+            centerOffset={{ x: 0, y: -2 }}
             zIndex={3}
           >
-            <View style={styles.routeMarkerContainer}>
-              <View style={[styles.routeMarkerPin, { backgroundColor: '#E53935' }]}>
-                <Ionicons name="flag" size={14} color="#FFF" />
+            <View style={styles.dropMarkerContainer}>
+              {/* Pin body - teardrop shape */}
+              <View style={styles.dropMarkerPin}>
+                {/* White border ring */}
+                <View style={styles.dropMarkerBorder}>
+                  {/* Red fill */}
+                  <View style={styles.dropMarkerFill}>
+                    {/* Icon inside */}
+                    <Ionicons name="location" size={20} color="#FFF" />
+                  </View>
+                </View>
+                {/* Pin point/tail */}
+                <View style={styles.dropMarkerTail} />
               </View>
-              <View style={[styles.routeMarkerShadow, { backgroundColor: '#E53935' }]} />
+              {/* Ground shadow for 3D effect */}
+              <View style={styles.dropMarkerShadow} />
             </View>
           </Marker>
         )}
@@ -1513,13 +1559,13 @@ export default function HomeScreen() {
         )}
       </SafeAreaContextView>
 
-      {/* Recenter FAB - positioned above the booking card */}
+      {/* Recenter FAB - fixed on map, just above drawer (Uber/Rapido style) */}
       <TouchableOpacity
         style={[styles.mapRecenterFab, { backgroundColor: colors.card, borderColor: colors.border }]}
         onPress={handleRecenter}
-        activeOpacity={0.8}
+        activeOpacity={0.7}
       >
-        <Ionicons name="locate" size={22} color={colors.accent} />
+        <Ionicons name="locate" size={26} color={colors.accent} />
       </TouchableOpacity>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -2855,30 +2901,117 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  // ── Route Markers ──
-  routeMarkerContainer: {
+  // ── Premium 3D Pickup Marker (Circular Badge) ──
+  pickupMarkerContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  routeMarkerPin: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  pickupMarkerGlow: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#00E676',
+    opacity: 0.25,
+  },
+  pickupMarkerBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFF',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  pickupMarkerInner: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#00E676',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickupMarkerDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  pickupMarkerShadow: {
+    position: 'absolute',
+    bottom: -6,
+    width: 16,
+    height: 6,
+    borderRadius: 8,
+    backgroundColor: '#000',
+    opacity: 0.2,
+  },
+
+  // ── Premium 3D Drop Marker (Pin/Teardrop) ──
+  dropMarkerContainer: {
+    alignItems: 'center',
+  },
+  dropMarkerPin: {
+    alignItems: 'center',
+  },
+  dropMarkerBorder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dropMarkerFill: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FF1744',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropMarkerTail: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderTopWidth: 12,
+    borderRightWidth: 8,
+    borderBottomWidth: 0,
+    borderLeftWidth: 8,
+    borderTopColor: '#FFF',
+    borderRightColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderLeftColor: 'transparent',
+    marginTop: -2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 4,
   },
-  routeMarkerShadow: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: -4,
-    opacity: 0.3,
+  dropMarkerShadow: {
+    position: 'absolute',
+    bottom: -4,
+    width: 18,
+    height: 6,
+    borderRadius: 9,
+    backgroundColor: '#000',
+    opacity: 0.25,
   },
 
   // ── Route Info Card (Small - below header) ──
@@ -4660,19 +4793,19 @@ const styles = StyleSheet.create({
   mapRecenterFab: {
     position: 'absolute',
     right: 16,
-    bottom: 340, // Position above the booking card
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    bottom: 260, // Fixed position on map, just above "Choose Your Ride" drawer (Uber/Rapido style)
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
-    zIndex: 15,
+    zIndex: 1001, // Above all drawers to ensure always visible and clickable
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
   },
 
 });
