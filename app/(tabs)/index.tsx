@@ -38,82 +38,9 @@ const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.55;
 const DRAWER_HEIGHT_LARGE = SCREEN_HEIGHT * 0.65;
 const DRAWER_HEIGHT_SMALL = SCREEN_HEIGHT * 0.45;
 
-const lightMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#F5F5F5' }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#F5F5F5' }] },
-  { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#BDBDBD' }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#EAEAEA' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#EEEEEE' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] },
-  { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#DADADA' }] },
-  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#C9C9C9' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#9E9E9E' }] },
-];
-
-const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#1C1C24' }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#8E8E93' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#1C1C24' }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#2C2C35' }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#24242E' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1C2D24' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2D2D38' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3A3A4D' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1A2840' }] },
-];
-
-const tierDetails = {
-  Standard: {
-    name: 'Standard',
-    icon: 'car-side' as const,
-    color: '#FF4F8B',
-    desc: 'Comfortable, budget-friendly everyday rides.',
-    detailDesc: 'Perfect for daily commuting or quick solo trips. Safe, clean, and extremely budget-friendly hatchbacks with professional drivers.',
-    price: '₹ 49',
-    eta: '4 mins away',
-    rating: '4.8',
-    capacity: '4 seats',
-  },
-  Delux: {
-    name: 'Delux',
-    icon: 'car-sports' as const,
-    color: '#FF4F8B',
-    desc: 'Premium comfort and extra space.',
-    detailDesc: 'Enjoy a premium travel experience in spacious, high-end sedans. Features top-rated drivers, extra legroom, and dual-zone climate control.',
-    price: '₹ 79',
-    eta: '2 mins away',
-    rating: '4.9',
-    capacity: '4 seats',
-  },
-  VIP: {
-    name: 'VIP',
-    icon: 'crown' as const,
-    color: '#FF4F8B',
-    desc: 'Elite luxury experience with top chauffeurs.',
-    detailDesc: 'Ride in first-class luxury. Our elite tier features high-end premium SUVs, noise-canceling cabin, complimentary refreshments, and priority route dispatch.',
-    price: '₹ 129',
-    eta: '1 min away',
-    rating: '5.0',
-    capacity: '6 seats',
-  },
-};
-
-const NEARBY_PLACES = [
-  { id: '1', name: '5/127, Block 17', address: 'Block 5, Subhash Nagar, Delhi', distance: '34 km', lat: '28.6421', lon: '77.1156' },
-  { id: '2', name: 'Gurgaon Railway Station Parking', address: 'Kheri, Ashok Vihar, Sector 3, Gurugram, Haryana', distance: '16 km', lat: '28.4595', lon: '77.0266' },
-  { id: '3', name: 'Jagannath Community College (JCC)', address: 'Community Center, Plot No. 2 & 3, Sector 3, Rohini', distance: '43 km', lat: '28.7041', lon: '77.1025' },
-  { id: '4', name: 'Centrum Plaza', address: 'Golf Course Rd, near ILM Institute, Sector 53', distance: '3.3 km', lat: '28.4437', lon: '77.1028' },
-  { id: '5', name: 'Huda City Centre Metro', address: 'Huda City Centre, Sector 29, New Delhi', distance: '7.5 km', lat: '28.4594', lon: '77.0724' },
-  { id: '6', name: 'Netaji Subhash Place Metro Station', address: 'Ring Rd, Near D Mall, Netaji Subhash Place', distance: '42 km', lat: '28.6969', lon: '77.1537' },
-];
+import { darkMapStyle, lightMapStyle } from '@/constants/mapStyles';
+import { NEARBY_PLACES } from '@/constants/mockData';
+import { tierDetails } from '@/constants/rideTiers';
 
 
 export default function HomeScreen() {

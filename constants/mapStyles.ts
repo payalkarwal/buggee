@@ -1,0 +1,31 @@
+export const lightMapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#F5F5F5' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#F5F5F5' }] },
+  { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#BDBDBD' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#EAEAEA' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#EEEEEE' }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] },
+  { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#DADADA' }] },
+  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#C9C9C9' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#9E9E9E' }] },
+];
+
+export const darkMapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#1C1C24' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#8E8E93' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#1C1C24' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#2C2C35' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#24242E' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1C2D24' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2D2D38' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3A3A4D' }] },
+  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#22222A' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1A2840' }] },
+];
