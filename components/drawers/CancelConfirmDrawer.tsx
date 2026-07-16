@@ -1,5 +1,6 @@
 /**
  * CancelConfirmDrawer - Final cancellation confirmation
+ * Uses delayed opening animation for smooth transitions
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions } from 'react-native';
@@ -7,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useRideStore } from '@/store/rideStore';
+import { DRAWER_OPEN_DELAY, SPRING_CONFIG_OPEN, SPRING_CONFIG_CLOSE, FADE_IN_CONFIG, FADE_OUT_CONFIG } from '@/constants/animations';
 import * as Haptics from 'expo-haptics';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -26,17 +28,29 @@ export default function CancelConfirmDrawer({ isOpen, onClose, onConfirm, onWait
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
+    let openTimeout: ReturnType<typeof setTimeout>;
+
     if (isOpen) {
-      Animated.parallel([
-        Animated.spring(slideAnim, { toValue: 0, tension: 50, friction: 12, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-      ]).start();
+      // Reset to bottom position immediately (no flash since component just mounted)
+      slideAnim.setValue(SCREEN_HEIGHT);
+      fadeAnim.setValue(0);
+      // Delay opening to let previous drawer slide down first
+      openTimeout = setTimeout(() => {
+        Animated.parallel([
+          Animated.spring(slideAnim, { toValue: 0, ...SPRING_CONFIG_OPEN }),
+          Animated.timing(fadeAnim, FADE_IN_CONFIG),
+        ]).start();
+      }, DRAWER_OPEN_DELAY);
     } else {
       Animated.parallel([
-        Animated.spring(slideAnim, { toValue: SCREEN_HEIGHT, tension: 55, friction: 14, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: SCREEN_HEIGHT, ...SPRING_CONFIG_CLOSE }),
+        Animated.timing(fadeAnim, FADE_OUT_CONFIG),
       ]).start();
     }
+
+    return () => {
+      if (openTimeout) clearTimeout(openTimeout);
+    };
   }, [isOpen]);
 
   const handleConfirm = () => {

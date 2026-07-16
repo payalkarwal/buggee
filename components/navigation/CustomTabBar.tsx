@@ -6,6 +6,12 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ROUTES } from '@/constants/routes';
 import { useAppTheme } from '@/context/ThemeContext';
+import { CalendarCheckIcon } from '@/components/icons';
+
+// Buggee accent pink for active bookings tab
+const BOOKINGS_ACTIVE_COLOR = '#FF4F8B';
+const BOOKINGS_INACTIVE_COLOR = '#8E8E93';
+const BOOKINGS_INACTIVE_DARK = '#757575';
 
 export interface CustomTabBarProps {
   activeTab: 'home' | 'bookings' | 'profile';
@@ -66,10 +72,10 @@ export default function CustomTabBar({ activeTab, style }: CustomTabBarProps) {
         style={styles.tabItem}
         onPress={() => activeTab !== 'bookings' && router.replace(ROUTES.BOOKINGS)}
       >
-        <Ionicons
-          name={activeTab === 'bookings' ? 'receipt' : 'receipt-outline'}
+        <CalendarCheckIcon
           size={29}
-          color={activeTab === 'bookings' ? (isDark ? '#FFFFFF' : '#000000') : (isDark ? '#757575' : '#8E8E93')}
+          color={activeTab === 'bookings' ? BOOKINGS_ACTIVE_COLOR : (isDark ? BOOKINGS_INACTIVE_DARK : BOOKINGS_INACTIVE_COLOR)}
+          filled={activeTab === 'bookings'}
         />
       </TouchableOpacity>
 

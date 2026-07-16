@@ -1,5 +1,6 @@
 /**
  * WaitingDrawer - "Finding driver" status
+ * Uses delayed opening animation for smooth transitions
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions } from 'react-native';
@@ -7,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useRideStore } from '@/store/rideStore';
+import { DRAWER_OPEN_DELAY, SPRING_CONFIG_OPEN, SPRING_CONFIG_CLOSE } from '@/constants/animations';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -25,20 +27,32 @@ export default function WaitingDrawer({ isOpen, onCancel, onViewDetails }: Waiti
   const rippleAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
+    let openTimeout: ReturnType<typeof setTimeout>;
+    let pulse: Animated.CompositeAnimation;
+
     if (isOpen) {
-      Animated.spring(slideAnim, { toValue: 0, tension: 50, friction: 12, useNativeDriver: true }).start();
-      // Start pulse animation
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.15, duration: 1400, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
+      // Reset to bottom position immediately (no flash since component just mounted)
+      slideAnim.setValue(SCREEN_HEIGHT);
+      // Delay opening to let previous drawer slide down first
+      openTimeout = setTimeout(() => {
+        Animated.spring(slideAnim, { toValue: 0, ...SPRING_CONFIG_OPEN }).start();
+        // Start pulse animation
+        pulse = Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 1.15, duration: 1400, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
+          ])
+        );
+        pulse.start();
+      }, DRAWER_OPEN_DELAY);
     } else {
-      Animated.spring(slideAnim, { toValue: SCREEN_HEIGHT, tension: 55, friction: 14, useNativeDriver: true }).start();
+      Animated.spring(slideAnim, { toValue: SCREEN_HEIGHT, ...SPRING_CONFIG_CLOSE }).start();
     }
+
+    return () => {
+      if (openTimeout) clearTimeout(openTimeout);
+      if (pulse) pulse.stop();
+    };
   }, [isOpen]);
 
   if (!isOpen || !bookedRide) return null;

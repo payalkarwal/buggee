@@ -1,5 +1,6 @@
 /**
  * RideDetailsDrawer - Full ride details with payment options
+ * Uses delayed opening animation for smooth transitions
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions, Switch, ScrollView } from 'react-native';
@@ -7,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useRideStore } from '@/store/rideStore';
+import { DRAWER_OPEN_DELAY, SPRING_CONFIG_OPEN, SPRING_CONFIG_CLOSE } from '@/constants/animations';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -22,11 +24,22 @@ export default function RideDetailsDrawer({ isOpen, onClose }: RideDetailsDrawer
   const slideAnim = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   React.useEffect(() => {
+    let openTimeout: ReturnType<typeof setTimeout>;
+
     if (isOpen) {
-      Animated.spring(slideAnim, { toValue: 0, tension: 50, friction: 12, useNativeDriver: true }).start();
+      // Reset to bottom position immediately (no flash since component just mounted)
+      slideAnim.setValue(SCREEN_HEIGHT);
+      // Delay opening to let previous drawer slide down first
+      openTimeout = setTimeout(() => {
+        Animated.spring(slideAnim, { toValue: 0, ...SPRING_CONFIG_OPEN }).start();
+      }, DRAWER_OPEN_DELAY);
     } else {
-      Animated.spring(slideAnim, { toValue: SCREEN_HEIGHT, tension: 55, friction: 14, useNativeDriver: true }).start();
+      Animated.spring(slideAnim, { toValue: SCREEN_HEIGHT, ...SPRING_CONFIG_CLOSE }).start();
     }
+
+    return () => {
+      if (openTimeout) clearTimeout(openTimeout);
+    };
   }, [isOpen]);
 
   if (!isOpen || !bookedRide) return null;

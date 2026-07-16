@@ -2,7 +2,7 @@
  * BookingDrawer - Pickup/Drop location selection
  * Uses delayed opening animation for smooth transitions
  */
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,7 +21,7 @@ interface BookingDrawerProps {
 }
 
 export default function BookingDrawer({ isOpen, onClose, onOpenLocationDrawer, onRequestRide }: BookingDrawerProps) {
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { selectedTier, getTierLocation } = useRideStore();
   const slideAnim = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -30,11 +30,28 @@ export default function BookingDrawer({ isOpen, onClose, onOpenLocationDrawer, o
   const currentDrop = selectedTier ? getTierLocation(selectedTier, 'drop') : '';
 
   React.useEffect(() => {
+    let openTimeout: ReturnType<typeof setTimeout>;
+
     if (isOpen) {
-      Animated.spring(slideAnim, { toValue: 0, tension: 50, friction: 12, useNativeDriver: true }).start();
+      // Reset to bottom position immediately (no flash since component just mounted)
+      slideAnim.setValue(SCREEN_HEIGHT);
+      // Delay opening to let "Choose Your Ride" slide down first
+      openTimeout = setTimeout(() => {
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          ...SPRING_CONFIG_OPEN,
+        }).start();
+      }, DRAWER_OPEN_DELAY);
     } else {
-      Animated.spring(slideAnim, { toValue: SCREEN_HEIGHT, tension: 55, friction: 14, useNativeDriver: true }).start();
+      Animated.spring(slideAnim, {
+        toValue: SCREEN_HEIGHT,
+        ...SPRING_CONFIG_CLOSE,
+      }).start();
     }
+
+    return () => {
+      if (openTimeout) clearTimeout(openTimeout);
+    };
   }, [isOpen]);
 
   if (!isOpen || !selectedTier) return null;
