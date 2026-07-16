@@ -1,14 +1,15 @@
 /**
  * BookingDrawer - Pickup/Drop location selection
+ * Uses delayed opening animation for smooth transitions
  */
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useRideStore } from '@/store/rideStore';
 import { tierDetails } from '@/constants/rideTiers';
-import * as Haptics from 'expo-haptics';
+import { DRAWER_OPEN_DELAY, SPRING_CONFIG_OPEN, SPRING_CONFIG_CLOSE } from '@/constants/animations';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

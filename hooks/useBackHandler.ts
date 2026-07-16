@@ -1,6 +1,11 @@
 /**
  * useBackHandler Hook
  * Android hardware back button handler for drawers
+ *
+ * Uses activeDrawer state machine:
+ * - Handles back navigation based on current drawer
+ * - Uses returnToPreviousDrawer for cancel/details flows
+ * - navigateToDrawer(null) returns to "Choose Your Ride"
  */
 
 import { useEffect } from 'react';
@@ -8,26 +13,62 @@ import { BackHandler } from 'react-native';
 import { useRideStore } from '@/store/rideStore';
 
 export function useBackHandler() {
-  const { isDrawerOpen, isBookingDrawerOpen, closeDrawer } = useRideStore();
+  const {
+    activeDrawer,
+    isLocationModalOpen,
+    navigateToDrawer,
+    closeLocationModal,
+    returnToPreviousDrawer,
+    returnToDrawer,
+  } = useRideStore();
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      // If tier drawer is open, close it and return to "Choose Your Ride"
-      if (isDrawerOpen) {
-        closeDrawer('tier');
-        return true; // Prevent default back behavior
+      // If location modal is open, close it first
+      if (isLocationModalOpen) {
+        closeLocationModal();
+        return true;
       }
 
-      // If booking drawer is open, close it and return to "Choose Your Ride"
-      if (isBookingDrawerOpen) {
-        closeDrawer('booking');
-        return true; // Prevent default back behavior
-      }
+      // Handle back based on active drawer
+      switch (activeDrawer) {
+        case 'tier':
+        case 'booking':
+          // Return to "Choose Your Ride"
+          navigateToDrawer(null);
+          return true;
 
-      // Allow default back behavior (no drawer is open)
-      return false;
+        case 'cancelReasons':
+        case 'cancelConfirm':
+        case 'rideDetails':
+          // Return to previous drawer (waiting or rideBooked)
+          if (returnToDrawer) {
+            returnToPreviousDrawer();
+            return true;
+          }
+          // Fallback to Choose Your Ride if no return drawer
+          navigateToDrawer(null);
+          return true;
+
+        case 'waiting':
+        case 'rideBooked':
+          // These are "sticky" drawers - can't back out of a ride in progress
+          // Just consume the back press to prevent app exit
+          return true;
+
+        default:
+          // No drawer open, allow default back behavior
+          return false;
+      }
     });
 
     return () => backHandler.remove();
-  }, [isDrawerOpen, isBookingDrawerOpen, closeDrawer]);
+  }, [
+    activeDrawer,
+    isLocationModalOpen,
+    navigateToDrawer,
+    closeLocationModal,
+    returnToPreviousDrawer,
+    returnToDrawer,
+  ]);
 }

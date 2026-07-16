@@ -2,6 +2,11 @@
  * useRideTimer Hook
  * Manages 12-second ride booking timer with pause/resume capability
  * Auto-transitions to Ride Booked drawer when timer completes
+ *
+ * Uses activeDrawer state machine:
+ * - Timer runs when activeDrawer === 'waiting'
+ * - Timer pauses when activeDrawer === 'cancelReasons' or 'cancelConfirm'
+ * - Timer resets when transitioning to rideBooked
  */
 
 import { useRef, useEffect } from 'react';
@@ -18,20 +23,21 @@ export function useRideTimer({ onTimerComplete }: UseRideTimerParams) {
   const timerStartTimeRef = useRef<number | null>(null);
 
   const {
-    isWaitingDrawerOpen,
-    isRideBookedDrawerOpen,
-    isCancelReasonsDrawerOpen,
-    isCancelConfirmDrawerOpen,
+    activeDrawer,
     timerPaused,
     remainingTime,
     setTimerPaused,
     setRemainingTime,
   } = useRideStore();
 
-  // Pause/Resume timer when cancel drawers open/close
+  // Derived states from activeDrawer
+  const isWaiting = activeDrawer === 'waiting';
+  const isInCancelFlow = activeDrawer === 'cancelReasons' || activeDrawer === 'cancelConfirm';
+
+  // Pause/Resume timer when entering/leaving cancel flow
   useEffect(() => {
-    if (isCancelReasonsDrawerOpen || isCancelConfirmDrawerOpen) {
-      // Pause timer
+    if (isInCancelFlow) {
+      // Pause timer when in cancel flow
       if (rideBookingTimerRef.current && !timerPaused) {
         clearTimeout(rideBookingTimerRef.current);
         rideBookingTimerRef.current = null;
@@ -44,28 +50,18 @@ export function useRideTimer({ onTimerComplete }: UseRideTimerParams) {
         }
         setTimerPaused(true);
       }
-    } else if (timerPaused && isWaitingDrawerOpen && !isRideBookedDrawerOpen) {
-      // Resume timer
+    } else if (timerPaused && isWaiting) {
+      // Resume timer when returning to waiting from cancel flow
       setTimerPaused(false);
     }
-  }, [
-    isCancelReasonsDrawerOpen,
-    isCancelConfirmDrawerOpen,
-    isWaitingDrawerOpen,
-    isRideBookedDrawerOpen,
-    timerPaused,
-    remainingTime,
-    setTimerPaused,
-    setRemainingTime,
-  ]);
+  }, [isInCancelFlow, isWaiting, timerPaused, remainingTime, setTimerPaused, setRemainingTime]);
 
   // Auto-transition to Ride Booked drawer after timer completes
   useEffect(() => {
-    if (isWaitingDrawerOpen && !isRideBookedDrawerOpen && !timerPaused) {
+    if (isWaiting && !timerPaused) {
       timerStartTimeRef.current = Date.now();
 
       rideBookingTimerRef.current = setTimeout(() => {
-        // Trigger callback to open ride booked drawer
         onTimerComplete();
         rideBookingTimerRef.current = null;
         setRemainingTime(DEFAULT_TIMER_DURATION); // Reset for next ride
@@ -78,12 +74,5 @@ export function useRideTimer({ onTimerComplete }: UseRideTimerParams) {
         }
       };
     }
-  }, [
-    isWaitingDrawerOpen,
-    isRideBookedDrawerOpen,
-    timerPaused,
-    remainingTime,
-    onTimerComplete,
-    setRemainingTime,
-  ]);
+  }, [isWaiting, timerPaused, remainingTime, onTimerComplete, setRemainingTime]);
 }

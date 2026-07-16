@@ -83,9 +83,9 @@ export default function CancelConfirmDrawer({ isOpen, onClose, onConfirm, onWait
 
         {/* Actions */}
         <View style={styles.actions}>
-          <TouchableOpacity style={[styles.waitButton, { borderColor: colors.border }]} onPress={onWaitForDriver}>
-            <Ionicons name="time-outline" size={20} color={colors.text} />
-            <Text style={[styles.waitButtonText, { color: colors.text }]}>Wait for Driver</Text>
+          <TouchableOpacity style={[styles.keepButton, { borderColor: colors.accent }]} onPress={onWaitForDriver}>
+            <Ionicons name="car" size={20} color={colors.accent} />
+            <Text style={[styles.keepButtonText, { color: colors.accent }]}>Keep My Ride</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.confirmButton, { backgroundColor: '#E53935' }]} onPress={handleConfirm}>
             <Ionicons name="close" size={20} color="#FFF" />
@@ -127,8 +127,8 @@ const styles = StyleSheet.create({
   warningCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12, marginBottom: 24 },
   warningText: { flex: 1, fontSize: 13, color: '#E65100' },
   actions: { flexDirection: 'row', gap: 12 },
-  waitButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 14, borderWidth: 1 },
-  waitButtonText: { fontSize: 14, fontWeight: '700' },
+  keepButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 14, borderWidth: 2 },
+  keepButtonText: { fontSize: 14, fontWeight: '700' },
   confirmButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 14 },
   confirmButtonText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
 });

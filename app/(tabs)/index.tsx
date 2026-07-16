@@ -1,6 +1,11 @@
 /**
  * HomeScreen - Main ride booking screen
- * Refactored to use Zustand store, extracted hooks, and modular drawer components
+ *
+ * DRAWER STATE MACHINE:
+ * - Uses `activeDrawer` for single source of truth (no transition gaps)
+ * - Uses `returnToDrawer` for cancel/details return navigation
+ * - Uses `isLocationModalOpen` for modal overlay
+ * - "Choose Your Ride" only visible when `activeDrawer === null`
  */
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -53,7 +58,7 @@ export default function HomeScreen() {
   const mapRef = useRef<MapView>(null);
 
   // ═══════════════════════════════════════════════════════════════════
-  // ZUSTAND STORE - All state managed centrally
+  // ZUSTAND STORE - Single source of truth for drawer state
   // ═══════════════════════════════════════════════════════════════════
   const {
     selectedTier,
@@ -63,22 +68,22 @@ export default function HomeScreen() {
     dropCoords,
     routeCoordinates,
     routeInfo,
-    isDrawerOpen,
-    isBookingDrawerOpen,
-    isLocationDrawerOpen,
-    isWaitingDrawerOpen,
-    isRideBookedDrawerOpen,
-    isRideDetailsDrawerOpen,
-    isCancelReasonsDrawerOpen,
-    isCancelConfirmDrawerOpen,
-    openDrawer,
-    closeDrawer,
+    // Drawer state machine
+    activeDrawer,
+    isLocationModalOpen,
+    navigateToDrawer,
+    openLocationModal,
+    closeLocationModal,
+    returnToPreviousDrawer,
+    // Location
     setLocationSelectionType,
+    // Booking
     setBookedRide,
     setDriverArrivalMins,
+    // Cancel
     setSelectedCancelReason,
-    setCancelInitiatedFrom,
-    setRideDetailsOpenedFrom,
+    resetCancelState,
+    // Global
     clearRoute,
     resetRideState,
   } = useRideStore();
@@ -94,12 +99,10 @@ export default function HomeScreen() {
   useRoute(mapRef);
   useRideTimer({
     onTimerComplete: () => {
-      closeDrawer('waiting');
-      setTimeout(() => {
-        successNotification();
-        setDriverArrivalMins(Math.floor(Math.random() * 6) + 3);
-        openDrawer('rideBooked');
-      }, 350);
+      // Timer complete: transition from waiting → rideBooked
+      successNotification();
+      setDriverArrivalMins(Math.floor(Math.random() * 6) + 3);
+      navigateToDrawer('rideBooked');
     },
   });
   const { handleRecenter } = useMapControls({ mapRef, userLocation });
@@ -108,18 +111,17 @@ export default function HomeScreen() {
   // ═══════════════════════════════════════════════════════════════════
   // ANIMATIONS
   // ═══════════════════════════════════════════════════════════════════
-  const tabBarAnim = useRef(new Animated.Value(0)).current; // Start hidden
-  const rideSectionSlideAnim = useRef(new Animated.Value(400)).current; // Start off-screen
+  const tabBarAnim = useRef(new Animated.Value(0)).current;
+  const rideSectionSlideAnim = useRef(new Animated.Value(400)).current;
   const hasAnimatedIn = useRef(false);
 
-  // Hide/show bottom section based on any drawer being open
-  const anyDrawerOpen = isDrawerOpen || isBookingDrawerOpen || isWaitingDrawerOpen || isRideBookedDrawerOpen;
+  // A drawer is active when activeDrawer is not null (excludes location modal)
+  const hasActiveDrawer = activeDrawer !== null;
 
-  // Initial launch animation - slide up the Choose Your Ride section
+  // Initial launch animation
   useEffect(() => {
     if (!hasAnimatedIn.current) {
       hasAnimatedIn.current = true;
-      // Delay slightly to let the map load first
       setTimeout(() => {
         Animated.parallel([
           Animated.spring(rideSectionSlideAnim, {
@@ -139,45 +141,43 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // Hide/show bottom section when drawers open/close
+  // Hide/show Choose Your Ride based on active drawer
+  // No gaps because activeDrawer switches instantly between drawers
   useEffect(() => {
     if (hasAnimatedIn.current) {
       Animated.parallel([
         Animated.timing(tabBarAnim, {
-          toValue: anyDrawerOpen ? 0 : 1,
+          toValue: hasActiveDrawer ? 0 : 1,
           duration: 300,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.spring(rideSectionSlideAnim, {
-          toValue: anyDrawerOpen ? 600 : 0,
+          toValue: hasActiveDrawer ? 600 : 0,
           tension: 55,
           friction: 14,
           useNativeDriver: true,
         }),
       ]).start();
     }
-  }, [anyDrawerOpen]);
+  }, [hasActiveDrawer]);
 
   // ═══════════════════════════════════════════════════════════════════
-  // HANDLERS
+  // DRAWER NAVIGATION HANDLERS
+  // All use navigateToDrawer for instant transitions (no gaps)
   // ═══════════════════════════════════════════════════════════════════
+
   const handleOpenTierDrawer = useCallback((tier: 'Standard' | 'Delux' | 'VIP') => {
     lightImpact();
     setSelectedTier(tier);
-    openDrawer('tier');
-  }, [setSelectedTier, openDrawer]);
+    navigateToDrawer('tier');
+  }, [setSelectedTier, navigateToDrawer]);
 
   const handleOpenBookingDrawer = useCallback((tier: 'Standard' | 'Delux' | 'VIP') => {
     mediumImpact();
     setSelectedTier(tier);
-    if (isDrawerOpen) {
-      closeDrawer('tier');
-      setTimeout(() => openDrawer('booking'), 350);
-    } else {
-      openDrawer('booking');
-    }
-  }, [isDrawerOpen, setSelectedTier, openDrawer, closeDrawer]);
+    navigateToDrawer('booking');
+  }, [setSelectedTier, navigateToDrawer]);
 
   const handleRequestRide = useCallback(() => {
     if (currentPickup && currentDrop && selectedTier) {
@@ -187,36 +187,57 @@ export default function HomeScreen() {
         drop: currentDrop,
         price: tierDetails[selectedTier].price,
       });
-      closeDrawer('booking');
-      setTimeout(() => {
-        successNotification();
-        openDrawer('waiting');
-      }, 350);
+      successNotification();
+      navigateToDrawer('waiting');
     }
-  }, [currentPickup, currentDrop, selectedTier, setBookedRide, closeDrawer, openDrawer]);
+  }, [currentPickup, currentDrop, selectedTier, setBookedRide, navigateToDrawer]);
+
+  // Cancel flow: store return drawer and navigate to cancel reasons
+  const handleInitiateCancel = useCallback((from: 'waiting' | 'rideBooked') => {
+    lightImpact();
+    navigateToDrawer('cancelReasons', { returnTo: from });
+  }, [navigateToDrawer]);
 
   const handleCancelReasonSelect = useCallback((reason: string) => {
     lightImpact();
     setSelectedCancelReason(reason);
-    closeDrawer('cancelReasons');
-    setTimeout(() => openDrawer('cancelConfirm'), 300);
-  }, [setSelectedCancelReason, closeDrawer, openDrawer]);
+    // Keep returnToDrawer intact, just switch to cancelConfirm
+    navigateToDrawer('cancelConfirm');
+  }, [setSelectedCancelReason, navigateToDrawer]);
 
   const handleConfirmCancel = useCallback(() => {
+    // Actually cancel: reset everything and go to home
     resetRideState();
     clearRoute();
+    // navigateToDrawer(null) is called by resetRideState
   }, [resetRideState, clearRoute]);
 
-  const handleWaitForDriver = useCallback(() => {
-    closeDrawer('cancelConfirm');
-    closeDrawer('rideDetails');
-    setCancelInitiatedFrom(null);
-  }, [closeDrawer, setCancelInitiatedFrom]);
+  const handleKeepMyRide = useCallback(() => {
+    // Return to previous drawer (waiting or rideBooked)
+    resetCancelState();
+    returnToPreviousDrawer();
+  }, [resetCancelState, returnToPreviousDrawer]);
 
-  const handleSelectPlace = useCallback((place: { name: string; lat?: string; lon?: string }) => {
-    // Place selection is handled inside LocationSearchDrawer via the store
-    // This callback can be used for additional logic if needed
-  }, []);
+  // Ride details flow: store return drawer and navigate
+  const handleViewRideDetails = useCallback((from: 'waiting' | 'rideBooked') => {
+    lightImpact();
+    navigateToDrawer('rideDetails', { returnTo: from });
+  }, [navigateToDrawer]);
+
+  const handleCloseRideDetails = useCallback(() => {
+    // Return to previous drawer
+    returnToPreviousDrawer();
+  }, [returnToPreviousDrawer]);
+
+  // Location modal (separate from drawer flow)
+  const handleOpenLocationDrawer = useCallback((type: 'pickup' | 'drop') => {
+    setLocationSelectionType(type);
+    openLocationModal();
+  }, [setLocationSelectionType, openLocationModal]);
+
+  const handleCloseLocationDrawer = useCallback(() => {
+    closeLocationModal();
+  }, [closeLocationModal]);
 
   // ═══════════════════════════════════════════════════════════════════
   // RENDER
@@ -233,7 +254,6 @@ export default function HomeScreen() {
         showsMyLocationButton={false}
         showsCompass={false}
       >
-        {/* Pickup Marker */}
         {pickupCoords && (
           <Marker coordinate={pickupCoords} anchor={{ x: 0.5, y: 1 }}>
             <View style={[styles.markerContainer, { backgroundColor: colors.accent }]}>
@@ -242,7 +262,6 @@ export default function HomeScreen() {
           </Marker>
         )}
 
-        {/* Drop Marker */}
         {dropCoords && (
           <Marker coordinate={dropCoords} anchor={{ x: 0.5, y: 1 }}>
             <View style={[styles.markerContainer, { backgroundColor: '#E53935' }]}>
@@ -251,7 +270,6 @@ export default function HomeScreen() {
           </Marker>
         )}
 
-        {/* Route Polyline */}
         {routeCoordinates.length > 0 && (
           <Polyline
             coordinates={routeCoordinates}
@@ -262,9 +280,8 @@ export default function HomeScreen() {
         )}
       </MapView>
 
-      {/* Top Bar - Logo & Notification Button */}
+      {/* Top Bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        {/* Premium Floating Logo Pill */}
         <View style={[styles.logoContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Image
             source={require('@/assets/images/logo.png')}
@@ -292,14 +309,14 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Floating Recenter Button - Positioned above drawer */}
+      {/* Floating Recenter Button */}
       <TouchableOpacity
         style={[
           styles.recenterBtn,
           {
             backgroundColor: colors.card,
             borderColor: colors.border,
-            bottom: anyDrawerOpen ? SCREEN_HEIGHT * 0.52 : 560,
+            bottom: hasActiveDrawer ? SCREEN_HEIGHT * 0.52 : 560,
           }
         ]}
         onPress={handleRecenter}
@@ -322,7 +339,6 @@ export default function HomeScreen() {
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Choose Your Ride</Text>
 
-        {/* Tier Cards */}
         {(['Standard', 'Delux', 'VIP'] as const).map((tier, index) => (
           <React.Fragment key={tier}>
             {index > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
@@ -364,78 +380,62 @@ export default function HomeScreen() {
       <CustomTabBar activeTab="home" style={{ opacity: tabBarAnim }} />
 
       {/* ═══════════════════════════════════════════════════════════════════
-          DRAWER COMPONENTS - All extracted for modularity
-          Components get their data from the Zustand store
+          DRAWER COMPONENTS
+          Each checks `activeDrawer === 'their-type'` for visibility
           ═══════════════════════════════════════════════════════════════════ */}
 
       <TierSelectionDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => closeDrawer('tier')}
+        isOpen={activeDrawer === 'tier'}
+        onClose={() => navigateToDrawer(null)}
       />
 
       <BookingDrawer
-        isOpen={isBookingDrawerOpen}
-        onClose={() => closeDrawer('booking')}
-        onOpenLocationDrawer={(type: 'pickup' | 'drop') => {
-          setLocationSelectionType(type);
-          openDrawer('location');
-        }}
+        isOpen={activeDrawer === 'booking'}
+        onClose={() => navigateToDrawer(null)}
+        onOpenLocationDrawer={handleOpenLocationDrawer}
         onRequestRide={handleRequestRide}
       />
 
       <LocationSearchDrawer
-        isOpen={isLocationDrawerOpen}
-        onClose={() => closeDrawer('location')}
-        onSelectPlace={handleSelectPlace}
+        isOpen={isLocationModalOpen}
+        onClose={handleCloseLocationDrawer}
       />
 
       <WaitingDrawer
-        isOpen={isWaitingDrawerOpen}
-        onViewDetails={() => {
-          setRideDetailsOpenedFrom('waiting');
-          openDrawer('rideDetails');
-        }}
-        onCancel={() => {
-          setCancelInitiatedFrom('waiting');
-          openDrawer('cancelReasons');
-        }}
+        isOpen={activeDrawer === 'waiting'}
+        onViewDetails={() => handleViewRideDetails('waiting')}
+        onCancel={() => handleInitiateCancel('waiting')}
       />
 
       <RideBookedDrawer
-        isOpen={isRideBookedDrawerOpen}
-        onViewDetails={() => {
-          setRideDetailsOpenedFrom('booked');
-          openDrawer('rideDetails');
-        }}
-        onCancel={() => {
-          setCancelInitiatedFrom('booked');
-          openDrawer('cancelReasons');
-        }}
+        isOpen={activeDrawer === 'rideBooked'}
+        onViewDetails={() => handleViewRideDetails('rideBooked')}
+        onCancel={() => handleInitiateCancel('rideBooked')}
       />
 
       <RideDetailsDrawer
-        isOpen={isRideDetailsDrawerOpen}
-        onClose={() => closeDrawer('rideDetails')}
+        isOpen={activeDrawer === 'rideDetails'}
+        onClose={handleCloseRideDetails}
       />
 
       <CancelReasonsDrawer
-        isOpen={isCancelReasonsDrawerOpen}
-        onClose={() => closeDrawer('cancelReasons')}
+        isOpen={activeDrawer === 'cancelReasons'}
+        onClose={handleKeepMyRide}
         onSelectReason={handleCancelReasonSelect}
       />
 
       <CancelConfirmDrawer
-        isOpen={isCancelConfirmDrawerOpen}
-        onClose={() => closeDrawer('cancelConfirm')}
+        isOpen={activeDrawer === 'cancelConfirm'}
+        onClose={handleKeepMyRide}
         onConfirm={handleConfirmCancel}
-        onWaitForDriver={handleWaitForDriver}
+        onWaitForDriver={handleKeepMyRide}
       />
     </View>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// STYLES - Minimal, only what's needed for main screen
+// STYLES
 // ═══════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
   container: {
@@ -454,19 +454,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     zIndex: 100,
   },
- logoContainer: {
-  width: 140,
-  height: 52,
-  borderRadius: 26,
-  overflow: 'hidden',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-
-logo: {
-  width: '100%',
-  height: '100%',
-},
+  logoContainer: {
+    width: 110,
+    height: 42,
+    borderRadius: 21,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
   notificationBtn: {
     width: 44,
     height: 44,
@@ -540,7 +544,6 @@ logo: {
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 100,
-    // Premium shadow for floating effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.15,

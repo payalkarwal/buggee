@@ -1,7 +1,12 @@
 /**
  * Ride Store - Zustand
  * Centralized state management for the ride booking flow
- * Eliminates 50+ useState calls from index.tsx
+ *
+ * DRAWER STATE MACHINE:
+ * - Single `activeDrawer` state ensures only one drawer is ever active
+ * - `returnToDrawer` tracks where to return after cancel/details flows
+ * - `isLocationModalOpen` is separate since it's a modal overlay
+ * - No gaps during transitions = no "Choose Your Ride" flash
  */
 
 import { create } from 'zustand';
@@ -46,9 +51,21 @@ interface RideStore {
   clearRoute: () => void;
 
   // ═══════════════════════════════════════════════════════════════════
-  // DRAWER STATES (9 drawers)
+  // DRAWER STATE MACHINE
+  // Single source of truth for which drawer is active
   // ═══════════════════════════════════════════════════════════════════
-  isDrawerOpen: boolean; // tier selection
+  activeDrawer: DrawerType | null;
+  returnToDrawer: DrawerType | null; // For returning after cancel/details
+  isLocationModalOpen: boolean; // Modal overlay (separate from drawer flow)
+
+  // Drawer navigation actions
+  navigateToDrawer: (drawer: DrawerType | null, options?: { returnTo?: DrawerType }) => void;
+  openLocationModal: () => void;
+  closeLocationModal: () => void;
+  returnToPreviousDrawer: () => void;
+
+  // Legacy compatibility (mapped to activeDrawer)
+  isDrawerOpen: boolean;
   isBookingDrawerOpen: boolean;
   isConfirmationDrawerOpen: boolean;
   isLocationDrawerOpen: boolean;
@@ -57,7 +74,6 @@ interface RideStore {
   isCancelReasonsDrawerOpen: boolean;
   isCancelConfirmDrawerOpen: boolean;
   isRideBookedDrawerOpen: boolean;
-
   openDrawer: (type: DrawerType) => void;
   closeDrawer: (type: DrawerType) => void;
   closeAllDrawers: () => void;
@@ -114,14 +130,10 @@ interface RideStore {
   selectedCancelReason: string | null;
   showCustomReasonInput: boolean;
   customReason: string;
-  cancelInitiatedFrom: 'waiting' | 'booked' | null;
-  rideDetailsOpenedFrom: 'waiting' | 'booked' | null;
 
   setSelectedCancelReason: (reason: string | null) => void;
   setShowCustomReasonInput: (show: boolean) => void;
   setCustomReason: (reason: string) => void;
-  setCancelInitiatedFrom: (from: 'waiting' | 'booked' | null) => void;
-  setRideDetailsOpenedFrom: (from: 'waiting' | 'booked' | null) => void;
   resetCancelState: () => void;
 
   // ═══════════════════════════════════════════════════════════════════
@@ -185,74 +197,94 @@ export const useRideStore = create<RideStore>((set, get) => ({
     }),
 
   // ═══════════════════════════════════════════════════════════════════
-  // DRAWER STATES - Initial State (all closed)
+  // DRAWER STATE MACHINE - Single source of truth
   // ═══════════════════════════════════════════════════════════════════
-  isDrawerOpen: false,
-  isBookingDrawerOpen: false,
-  isConfirmationDrawerOpen: false,
-  isLocationDrawerOpen: false,
-  isWaitingDrawerOpen: false,
-  isRideDetailsDrawerOpen: false,
-  isCancelReasonsDrawerOpen: false,
-  isCancelConfirmDrawerOpen: false,
-  isRideBookedDrawerOpen: false,
+  activeDrawer: null,
+  returnToDrawer: null,
+  isLocationModalOpen: false,
 
-  openDrawer: (type) => {
-    const drawerMap: Record<DrawerType, keyof RideStore> = {
-      tier: 'isDrawerOpen',
-      booking: 'isBookingDrawerOpen',
-      confirmation: 'isConfirmationDrawerOpen',
-      location: 'isLocationDrawerOpen',
-      waiting: 'isWaitingDrawerOpen',
-      rideDetails: 'isRideDetailsDrawerOpen',
-      cancelReasons: 'isCancelReasonsDrawerOpen',
-      cancelConfirm: 'isCancelConfirmDrawerOpen',
-      rideBooked: 'isRideBookedDrawerOpen',
-    };
-
-    // Close all drawers first, then open the requested one
-    // This ensures only one drawer is visible at a time
+  /**
+   * Navigate to a drawer with optional return tracking
+   * This is the primary drawer navigation method
+   */
+  navigateToDrawer: (drawer, options) => {
     set({
-      isDrawerOpen: false,
-      isBookingDrawerOpen: false,
-      isConfirmationDrawerOpen: false,
-      isLocationDrawerOpen: false,
-      isWaitingDrawerOpen: false,
-      isRideDetailsDrawerOpen: false,
-      isCancelReasonsDrawerOpen: false,
-      isCancelConfirmDrawerOpen: false,
-      isRideBookedDrawerOpen: false,
-      [drawerMap[type]]: true,
+      activeDrawer: drawer,
+      returnToDrawer: options?.returnTo ?? get().returnToDrawer,
     });
   },
 
-  closeDrawer: (type) => {
-    const drawerMap: Record<DrawerType, keyof RideStore> = {
-      tier: 'isDrawerOpen',
-      booking: 'isBookingDrawerOpen',
-      confirmation: 'isConfirmationDrawerOpen',
-      location: 'isLocationDrawerOpen',
-      waiting: 'isWaitingDrawerOpen',
-      rideDetails: 'isRideDetailsDrawerOpen',
-      cancelReasons: 'isCancelReasonsDrawerOpen',
-      cancelConfirm: 'isCancelConfirmDrawerOpen',
-      rideBooked: 'isRideBookedDrawerOpen',
-    };
+  openLocationModal: () => set({ isLocationModalOpen: true }),
+  closeLocationModal: () => set({ isLocationModalOpen: false }),
 
-    set({ [drawerMap[type]]: false });
+  /**
+   * Return to the previous drawer (used by "Keep My Ride" button)
+   */
+  returnToPreviousDrawer: () => {
+    const { returnToDrawer } = get();
+    set({
+      activeDrawer: returnToDrawer,
+      returnToDrawer: null,
+    });
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LEGACY DRAWER COMPATIBILITY
+  // These are computed from activeDrawer for backward compatibility
+  // ═══════════════════════════════════════════════════════════════════
+  get isDrawerOpen() {
+    return get().activeDrawer === 'tier';
+  },
+  get isBookingDrawerOpen() {
+    return get().activeDrawer === 'booking';
+  },
+  get isConfirmationDrawerOpen() {
+    return get().activeDrawer === 'confirmation';
+  },
+  get isLocationDrawerOpen() {
+    return get().isLocationModalOpen;
+  },
+  get isWaitingDrawerOpen() {
+    return get().activeDrawer === 'waiting';
+  },
+  get isRideDetailsDrawerOpen() {
+    return get().activeDrawer === 'rideDetails';
+  },
+  get isCancelReasonsDrawerOpen() {
+    return get().activeDrawer === 'cancelReasons';
+  },
+  get isCancelConfirmDrawerOpen() {
+    return get().activeDrawer === 'cancelConfirm';
+  },
+  get isRideBookedDrawerOpen() {
+    return get().activeDrawer === 'rideBooked';
+  },
+
+  openDrawer: (type) => {
+    // Location is a modal overlay, not a drawer
+    if (type === 'location') {
+      set({ isLocationModalOpen: true });
+      return;
+    }
+    set({ activeDrawer: type });
+  },
+
+  closeDrawer: (type) => {
+    if (type === 'location') {
+      set({ isLocationModalOpen: false });
+      return;
+    }
+    // Only close if this drawer is currently active
+    if (get().activeDrawer === type) {
+      set({ activeDrawer: null });
+    }
   },
 
   closeAllDrawers: () =>
     set({
-      isDrawerOpen: false,
-      isBookingDrawerOpen: false,
-      isConfirmationDrawerOpen: false,
-      isLocationDrawerOpen: false,
-      isWaitingDrawerOpen: false,
-      isRideDetailsDrawerOpen: false,
-      isCancelReasonsDrawerOpen: false,
-      isCancelConfirmDrawerOpen: false,
-      isRideBookedDrawerOpen: false,
+      activeDrawer: null,
+      isLocationModalOpen: false,
+      returnToDrawer: null,
     }),
 
   // ═══════════════════════════════════════════════════════════════════
@@ -318,22 +350,16 @@ export const useRideStore = create<RideStore>((set, get) => ({
   selectedCancelReason: null,
   showCustomReasonInput: false,
   customReason: '',
-  cancelInitiatedFrom: null,
-  rideDetailsOpenedFrom: null,
 
   setSelectedCancelReason: (reason) => set({ selectedCancelReason: reason }),
   setShowCustomReasonInput: (show) => set({ showCustomReasonInput: show }),
   setCustomReason: (reason) => set({ customReason: reason }),
-  setCancelInitiatedFrom: (from) => set({ cancelInitiatedFrom: from }),
-  setRideDetailsOpenedFrom: (from) => set({ rideDetailsOpenedFrom: from }),
 
   resetCancelState: () =>
     set({
       selectedCancelReason: null,
       showCustomReasonInput: false,
       customReason: '',
-      cancelInitiatedFrom: null,
-      rideDetailsOpenedFrom: null,
     }),
 
   // ═══════════════════════════════════════════════════════════════════
@@ -356,16 +382,10 @@ export const useRideStore = create<RideStore>((set, get) => ({
       routeInfo: null,
       isLoadingRoute: false,
 
-      // Close all drawers
-      isDrawerOpen: false,
-      isBookingDrawerOpen: false,
-      isConfirmationDrawerOpen: false,
-      isLocationDrawerOpen: false,
-      isWaitingDrawerOpen: false,
-      isRideDetailsDrawerOpen: false,
-      isCancelReasonsDrawerOpen: false,
-      isCancelConfirmDrawerOpen: false,
-      isRideBookedDrawerOpen: false,
+      // Reset drawer state machine
+      activeDrawer: null,
+      returnToDrawer: null,
+      isLocationModalOpen: false,
 
       // Reset booking
       bookedRide: null,
@@ -388,7 +408,5 @@ export const useRideStore = create<RideStore>((set, get) => ({
       selectedCancelReason: null,
       showCustomReasonInput: false,
       customReason: '',
-      cancelInitiatedFrom: null,
-      rideDetailsOpenedFrom: null,
     }),
 }));

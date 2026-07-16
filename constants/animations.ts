@@ -56,3 +56,6 @@ export const FADE_OUT_CONFIG = {
 export const RIDE_SECTION_SLIDE_UP_DELAY = 100; // ms delay before ride section slides up
 export const PULSE_ANIMATION_DURATION = 1500; // Duration for pulse/ripple effects
 export const BOUNCE_ANIMATION_DURATION = 800; // Duration for bounce animations
+
+// Delay before drawer slides up (allows "Choose Your Ride" to slide down first)
+export const DRAWER_OPEN_DELAY = 200; // ms

@@ -108,6 +108,15 @@ export default function CancelReasonsDrawer({ isOpen, onClose, onSelectReason }:
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Keep My Ride Button */}
+          <TouchableOpacity
+            style={[styles.keepRideButton, { borderColor: colors.accent }]}
+            onPress={onClose}
+          >
+            <Ionicons name="car" size={20} color={colors.accent} />
+            <Text style={[styles.keepRideButtonText, { color: colors.accent }]}>Keep My Ride</Text>
+          </TouchableOpacity>
         </ScrollView>
       </Animated.View>
     </>
@@ -145,4 +154,15 @@ const styles = StyleSheet.create({
   customReasonInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 15, minHeight: 100, marginBottom: 14 },
   submitButton: { paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: '700', color: '#000' },
+  keepRideButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 14,
+    borderWidth: 2,
+    marginBottom: 10,
+  },
+  keepRideButtonText: { fontSize: 16, fontWeight: '700' },
 });
