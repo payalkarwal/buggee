@@ -382,8 +382,8 @@ const styles = StyleSheet.create({
   square: { width: 12, height: 12, borderWidth: 2, borderRadius: 2 },
   inputWrapper: { flex: 1 },
   inputLabel: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 4,
   },

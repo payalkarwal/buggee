@@ -58,7 +58,7 @@ export default function WaitingDrawer({ isOpen, onCancel, onViewDetails }: Waiti
   if (!isOpen || !bookedRide) return null;
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: colors.modalBg, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: slideAnim }] }]}>
+    <Animated.View style={[styles.container, { backgroundColor: '#FFFFFF', paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: slideAnim }] }]}>
       <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
       {/* Status Section */}
@@ -73,7 +73,7 @@ export default function WaitingDrawer({ isOpen, onCancel, onViewDetails }: Waiti
       </View>
 
       {/* Ride Info */}
-      <View style={[styles.rideCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.rideCard, { backgroundColor: '#FFFFFF', borderColor: colors.border }]}>
         <View style={styles.rideRow}>
           <View style={styles.rideLeft}>
             <Text style={[styles.rideLabel, { color: colors.textSub }]}>From</Text>
@@ -104,7 +104,7 @@ export default function WaitingDrawer({ isOpen, onCancel, onViewDetails }: Waiti
           <Ionicons name="information-circle-outline" size={20} color={colors.text} />
           <Text style={[styles.detailsButtonText, { color: colors.text }]}>Ride Details</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.cancelButton, { backgroundColor: '#FF4444' }]} onPress={onCancel}>
+        <TouchableOpacity style={[styles.cancelButton, { backgroundColor: colors.accent }]} onPress={onCancel}>
           <Ionicons name="close" size={20} color="#FFF" />
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>

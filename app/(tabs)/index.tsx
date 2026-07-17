@@ -358,8 +358,8 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   </View>
                   <Text style={[styles.tierDesc, { color: colors.textSub }]}>{tierDetails[tier].desc}</Text>
-                  <Text style={[styles.tierPrice, { color: colors.accent }]}>
-                    {tierDetails[tier].price} <Text style={{ color: colors.textSub }}>/km</Text>
+                  <Text style={[styles.tierPrice, { color: '#000000' }]}>
+                    {tierDetails[tier].price}<Text style={{ color: colors.textSub }}>/km</Text>
                   </Text>
                 </View>
               </TouchableOpacity>

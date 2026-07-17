@@ -60,7 +60,7 @@ export default function BookingDrawer({ isOpen, onClose, onOpenLocationDrawer, o
   const TierIcon = selectedTier === 'Standard' ? 'car-side' : selectedTier === 'Delux' ? 'car-sports' : 'crown';
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: colors.modalBg, paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: slideAnim }] }]}>
+    <Animated.View style={[styles.container, { backgroundColor: '#FFFFFF', paddingBottom: Math.max(insets.bottom, 20), transform: [{ translateY: slideAnim }] }]}>
       <View style={[styles.handle, { backgroundColor: colors.border }]} />
       <View style={styles.content}>
         <TouchableOpacity onPress={onClose} style={[styles.backButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -68,7 +68,7 @@ export default function BookingDrawer({ isOpen, onClose, onOpenLocationDrawer, o
         </TouchableOpacity>
 
         {/* Tier Header */}
-        <View style={[styles.tierHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.tierHeader, { backgroundColor: '#FFFFFF', borderColor: colors.border }]}>
           <View style={[styles.iconOuter, { backgroundColor: colors.accentDim }]}>
             <MaterialCommunityIcons name={TierIcon} size={32} color={colors.accent} />
           </View>
@@ -96,7 +96,7 @@ export default function BookingDrawer({ isOpen, onClose, onOpenLocationDrawer, o
             <View style={styles.locationLeft}>
               <View style={[styles.dot, { backgroundColor: colors.accent }]} />
               <View>
-                <Text style={[styles.locationLabel, { color: colors.textSub }]}>Pickup location</Text>
+                <Text style={[styles.locationLabel, { color: '#000000' }]}>Pickup location</Text>
                 <Text style={[styles.locationValue, { color: currentPickup ? colors.text : colors.textSub }]}>
                   {currentPickup || 'Enter pickup location'}
                 </Text>
@@ -113,7 +113,7 @@ export default function BookingDrawer({ isOpen, onClose, onOpenLocationDrawer, o
             <View style={styles.locationLeft}>
               <View style={[styles.square, { borderColor: '#E53935' }]} />
               <View>
-                <Text style={[styles.locationLabel, { color: colors.textSub }]}>Drop off location</Text>
+                <Text style={[styles.locationLabel, { color: '#000000' }]}>Drop off location</Text>
                 <Text style={[styles.locationValue, { color: currentDrop ? colors.text : colors.textSub }]}>
                   {currentDrop || 'Where to?'}
                 </Text>
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   locationLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   dot: { width: 12, height: 12, borderRadius: 6 },
   square: { width: 12, height: 12, borderWidth: 2, borderRadius: 2 },
-  locationLabel: { fontSize: 12 },
+  locationLabel: { fontSize: 12, fontWeight: '700' },
   locationValue: { fontSize: 15, fontWeight: '500', marginTop: 2 },
   routeLine: { paddingLeft: 5, height: 24 },
   routeLinePath: { width: 2, height: '100%', marginLeft: 5 },
