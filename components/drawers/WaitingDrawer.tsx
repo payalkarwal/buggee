@@ -104,9 +104,9 @@ export default function WaitingDrawer({ isOpen, onCancel, onViewDetails }: Waiti
           <Ionicons name="information-circle-outline" size={20} color={colors.text} />
           <Text style={[styles.detailsButtonText, { color: colors.text }]}>Ride Details</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.cancelButton, { backgroundColor: colors.accent }]} onPress={onCancel}>
-          <Ionicons name="close" size={20} color="#FFF" />
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+        <TouchableOpacity style={[styles.cancelButton, { backgroundColor: '#FFFFFF', borderColor: colors.border, borderWidth: 1 }]} onPress={onCancel}>
+          <Ionicons name="close" size={20} color="#000000" />
+          <Text style={[styles.cancelButtonText, { color: '#000000' }]}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -151,5 +151,5 @@ const styles = StyleSheet.create({
   detailsButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1 },
   detailsButtonText: { fontSize: 14, fontWeight: '600' },
   cancelButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12 },
-  cancelButtonText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
+  cancelButtonText: { fontSize: 14, fontWeight: '600' },
 });

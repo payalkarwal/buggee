@@ -95,15 +95,15 @@ export default function CancelConfirmDrawer({ isOpen, onClose, onConfirm, onWait
           <Text style={styles.warningText}>Frequent cancellations may affect your rider rating</Text>
         </View>
 
-        {/* Actions */}
+        {/* Actions - Keep My Ride & Yes, Cancel */}
         <View style={styles.actions}>
-          <TouchableOpacity style={[styles.keepButton, { borderColor: colors.accent }]} onPress={onWaitForDriver}>
-            <Ionicons name="car" size={20} color={colors.accent} />
-            <Text style={[styles.keepButtonText, { color: colors.accent }]}>Keep My Ride</Text>
+          <TouchableOpacity style={[styles.keepButton, { backgroundColor: '#FFFFFF', borderColor: colors.border, borderWidth: 1 }]} onPress={onWaitForDriver}>
+            <Ionicons name="car" size={18} color="#000000" />
+            <Text style={[styles.keepButtonText, { color: '#000000' }]}>Keep My Ride</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.confirmButton, { backgroundColor: '#E53935' }]} onPress={handleConfirm}>
-            <Ionicons name="close" size={20} color="#FFF" />
-            <Text style={styles.confirmButtonText}>Yes, Cancel</Text>
+          <TouchableOpacity style={[styles.confirmButton, { backgroundColor: '#FFFFFF', borderColor: colors.border, borderWidth: 1 }]} onPress={handleConfirm}>
+            <Ionicons name="close" size={18} color="#000000" />
+            <Text style={[styles.confirmButtonText, { color: '#000000' }]}>Yes, Cancel</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   reasonCard: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 16 },
   reasonLabel: { fontSize: 12, marginBottom: 4 },
   reasonText: { fontSize: 15, fontWeight: '600' },
-  warningCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12, marginBottom: 24 },
+  warningCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12, marginBottom: 20 },
   warningText: { flex: 1, fontSize: 13, color: '#E65100' },
   actions: { flexDirection: 'row', gap: 12 },
   keepButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 14, borderWidth: 2 },

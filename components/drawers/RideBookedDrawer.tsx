@@ -68,8 +68,8 @@ export default function RideBookedDrawer({ isOpen, onCancel, onViewDetails }: Ri
         <Text style={[styles.headerSubtitle, { color: colors.textSub }]}>Driver arriving in {driverArrivalMins} min</Text>
       </View>
 
-      {/* Driver Card */}
-      <View style={[styles.driverCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      {/* Driver Details */}
+      <View style={styles.driverSection}>
         <View style={styles.driverRow}>
           <View style={[styles.driverAvatar, { backgroundColor: colors.accentDim }]}>
             {driver.photo ? (
@@ -99,7 +99,7 @@ export default function RideBookedDrawer({ isOpen, onCancel, onViewDetails }: Ri
       </View>
 
       {/* OTP */}
-      <View style={[styles.otpCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.otpSection}>
         <Text style={[styles.otpLabel, { color: colors.textSub }]}>Share OTP with driver</Text>
         <View style={styles.otpRow}>
           {rideOTP.split('').map((digit, index) => (
@@ -116,9 +116,9 @@ export default function RideBookedDrawer({ isOpen, onCancel, onViewDetails }: Ri
           <Ionicons name="document-text-outline" size={20} color={colors.text} />
           <Text style={[styles.detailsButtonText, { color: colors.text }]}>Details</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.cancelButton, { backgroundColor: '#FF4444' }]} onPress={onCancel}>
-          <Ionicons name="close" size={20} color="#FFF" />
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+        <TouchableOpacity style={[styles.cancelButton, { backgroundColor: '#FFFFFF', borderColor: colors.border, borderWidth: 1 }]} onPress={onCancel}>
+          <Ionicons name="close" size={20} color="#000000" />
+          <Text style={[styles.cancelButtonText, { color: '#000000' }]}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   successBadge: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   headerTitle: { fontSize: 20, fontWeight: '700' },
   headerSubtitle: { fontSize: 14, marginTop: 2 },
-  driverCard: { borderRadius: 16, borderWidth: 1, marginBottom: 16, padding: 16 },
+  driverSection: { marginBottom: 20 },
   driverRow: { flexDirection: 'row', alignItems: 'center' },
   driverAvatar: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
   driverPhoto: { width: 56, height: 56, borderRadius: 28 },
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   carRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   carText: { flex: 1, fontSize: 14 },
   plateText: { fontSize: 14, fontWeight: '700' },
-  otpCard: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 20, alignItems: 'center' },
+  otpSection: { alignItems: 'center', marginBottom: 20 },
   otpLabel: { fontSize: 13, marginBottom: 12 },
   otpRow: { flexDirection: 'row', gap: 10 },
   otpBox: { width: 48, height: 56, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
@@ -170,5 +170,5 @@ const styles = StyleSheet.create({
   detailsButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12, borderWidth: 1 },
   detailsButtonText: { fontSize: 14, fontWeight: '600' },
   cancelButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12 },
-  cancelButtonText: { fontSize: 14, fontWeight: '600', color: '#FFF' },
+  cancelButtonText: { fontSize: 14, fontWeight: '600' },
 });

@@ -2,8 +2,8 @@
  * CancelReasonsDrawer - Select cancellation reason
  * Uses delayed opening animation for smooth transitions
  */
-import React from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions, ScrollView, TextInput, Keyboard } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions, ScrollView, TextInput, Keyboard, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/context/ThemeContext';
@@ -24,10 +24,37 @@ export default function CancelReasonsDrawer({ isOpen, onClose, onSelectReason }:
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { showCustomReasonInput, setShowCustomReasonInput, customReason, setCustomReason } = useRideStore();
-  const slideAnim = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  React.useEffect(() => {
+  // Handle keyboard events
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        // Scroll to bottom to show the input
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     let openTimeout: ReturnType<typeof setTimeout>;
 
     if (isOpen) {
@@ -69,17 +96,49 @@ export default function CancelReasonsDrawer({ isOpen, onClose, onSelectReason }:
     }
   };
 
+  const handleSkip = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (showCustomReasonInput) {
+      // If custom reason input is showing, go back to reason list
+      Keyboard.dismiss();
+      setCustomReason('');
+      setShowCustomReasonInput(false);
+    } else {
+      // Otherwise close the drawer
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
+
+  // Calculate max height - leave space for keyboard + some top margin
+  const maxDrawerHeight = SCREEN_HEIGHT - (keyboardHeight > 0 ? keyboardHeight : 0) - 60;
 
   return (
     <>
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
       </Animated.View>
-      <Animated.View style={[styles.container, { backgroundColor: colors.modalBg, paddingBottom: Math.max(insets.bottom, 40), transform: [{ translateY: slideAnim }] }]}>
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            backgroundColor: colors.modalBg,
+            paddingBottom: keyboardHeight > 0 ? 20 : Math.max(insets.bottom, 40),
+            transform: [{ translateY: slideAnim }],
+            maxHeight: maxDrawerHeight,
+            bottom: keyboardHeight > 0 ? keyboardHeight : 0,
+          }
+        ]}
+      >
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
           <Text style={[styles.title, { color: colors.text }]}>Why do you want to cancel?</Text>
           <Text style={[styles.subtitle, { color: colors.textSub }]}>Help us improve by selecting a reason</Text>
 
@@ -112,6 +171,12 @@ export default function CancelReasonsDrawer({ isOpen, onClose, onSelectReason }:
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
+                autoFocus
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 150);
+                }}
               />
               <TouchableOpacity
                 style={[styles.submitButton, { backgroundColor: colors.accent, opacity: customReason.trim() ? 1 : 0.5 }]}
@@ -123,14 +188,22 @@ export default function CancelReasonsDrawer({ isOpen, onClose, onSelectReason }:
             </View>
           )}
 
-          {/* Keep My Ride Button */}
-          <TouchableOpacity
-            style={[styles.keepRideButton, { borderColor: colors.accent }]}
-            onPress={onClose}
-          >
-            <Ionicons name="car" size={20} color={colors.accent} />
-            <Text style={[styles.keepRideButtonText, { color: colors.accent }]}>Keep My Ride</Text>
-          </TouchableOpacity>
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.keepRideButton, { backgroundColor: '#FFFFFF', borderColor: colors.border, borderWidth: 1 }]}
+              onPress={onClose}
+            >
+              <Ionicons name="car" size={18} color="#000000" />
+              <Text style={[styles.keepRideButtonText, { color: '#000000' }]}>Keep My Ride</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.skipButton, { backgroundColor: '#FFFFFF', borderColor: colors.border, borderWidth: 1 }]}
+              onPress={handleSkip}
+            >
+              <Text style={[styles.skipButtonText, { color: '#000000' }]}>{showCustomReasonInput ? 'Back' : 'Skip'}</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </Animated.View>
     </>
@@ -142,7 +215,6 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1 },
   container: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
     borderTopLeftRadius: 32,
@@ -156,6 +228,9 @@ const styles = StyleSheet.create({
     shadowRadius: 32,
     elevation: 40,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   handle: { width: 40, height: 5, borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
   title: { fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
   subtitle: { fontSize: 14, fontWeight: '500', textAlign: 'center', marginBottom: 20 },
@@ -168,15 +243,27 @@ const styles = StyleSheet.create({
   customReasonInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 15, minHeight: 100, marginBottom: 14 },
   submitButton: { paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: '700', color: '#000' },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+  },
   keepRideButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     paddingVertical: 16,
     borderRadius: 14,
-    borderWidth: 2,
-    marginBottom: 10,
   },
-  keepRideButtonText: { fontSize: 16, fontWeight: '700' },
+  keepRideButtonText: { fontSize: 14, fontWeight: '700' },
+  skipButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 14,
+  },
+  skipButtonText: { fontSize: 14, fontWeight: '700', color: '#000' },
 });
